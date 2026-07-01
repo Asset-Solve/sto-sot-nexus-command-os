@@ -1,0 +1,206 @@
+# =============================================================================
+# Gate rules - data-driven checks consumed by orchestrator/gates/validate.py
+# =============================================================================
+# Three classes of automated check:
+#   forbidden_patterns : regex scanners over the target workspace (heuristic;
+#                        every hit is a finding an agent must justify or fix)
+#   stop_conditions    : ERP no-go rules. Automated where possible, otherwise
+#                        require an explicit signed attestation artifact.
+#   tests              : named test suites -> shell command per stack.
+# Severity: block  = gate cannot pass with an open finding
+#           warn   = recorded in the gate report, does not block by itself
+# =============================================================================
+version: 1
+
+# --- Heuristic source scanners --------------------------------------------
+forbidden_patterns:
+  hardcoded_dropdown:
+    description: >-
+      Dropdown / select options hard-coded in the frontend instead of served by
+      a backend lookup API with source, freshness and posting-eligibility.
+    severity: block
+    include: ["apps/web/**/*.{ts,tsx,js,jsx,vue,svelte}"]
+    exclude: ["**/*.test.*", "**/*.stories.*", "**/*.mock.*", "**/fixtures/**"]
+    patterns:
+      - '<option[^>]*>(?!\s*\{)'                       # literal <option> children
+      - '(options|items|choices)\s*[:=]\s*\[\s*[''"]'  # inline option arrays of string literals
+      - 'enum\s*:\s*\[[^\]]*\]\s*//\s*dropdown'
+    justification_tag: "LOOKUP-EXEMPT"                 # inline comment that whitelists a hit
+
+  fake_button:
+    description: >-
+      Interactive control with no backend call (onClick/handler with no fetch,
+      mutation, api call, or command dispatch).
+    severity: block
+    include: ["apps/web/**/*.{tsx,jsx,vue,svelte}"]
+    exclude: ["**/*.test.*", "**/*.stories.*"]
+    patterns:
+      - 'onClick=\{\s*\(\)\s*=>\s*\{\s*\}\s*\}'        # empty handler
+      - 'onClick=\{\s*\(\)\s*=>\s*(alert|console\.log)'
+      - 'href=["'']#["'']'
+    justification_tag: "UI-NOOP-EXEMPT"
+
+  frontend_direct_erp:
+    description: >-
+      Frontend calling SAP/Oracle/DB/secrets directly instead of via the BFF/API
+      and governed connector layer.
+    severity: block
+    include: ["apps/web/**/*.{ts,tsx,js,jsx,vue,svelte}"]
+    patterns:
+      - '(fetch|axios|http)\s*\(?["''][^"'']*(sap|s4hana|odata|/sap/opu|oracle|fusion|fscmRest|hcmRest)'
+      - 'process\.env\.[A-Z_]*(SECRET|PASSWORD|CLIENT_SECRET|PRIVATE_KEY)'
+      - 'jdbc:|postgres://|mongodb://|mysql://'
+    justification_tag: null   # never exempt
+
+  mock_default:
+    description: >-
+      Mock / stub / TODO connector left as the default path for a governed field
+      or write action in non-test code.
+    severity: warn
+    include: ["apps/**/*.{ts,tsx,js,jsx}", "packages/connectors/**/*.{ts,js}"]
+    exclude: ["**/*.test.*", "**/*.spec.*", "**/mocks/**", "**/__mocks__/**"]
+    patterns:
+      - 'return\s+MOCK_'
+      - '//\s*(TODO|FIXME|HACK):.*(connector|posting|write-back)'
+      - 'const\s+USE_MOCK\s*=\s*true'
+    justification_tag: "SIMULATOR-MODE"
+
+  leftover_marker:
+    description: Unresolved authoring markers anywhere in the pack or generated app.
+    severity: block
+    include: ["**/*.{md,ts,tsx,js,jsx,py,yaml,yml,json}"]
+    exclude: ["orchestrator/gates/rules.yaml", "**/node_modules/**", "**/*.test.*"]
+    patterns:
+      - '\b(TODO|FIXME|TBD|XXX|PLACEHOLDER)\b'
+    justification_tag: "TRACKED"
+
+# --- ERP no-go / stop conditions ------------------------------------------
+# detect: attestation  -> requires a signed line in the named artifact
+#         scan         -> reuses a forbidden_patterns rule
+#         schema       -> a required field must be present & non-empty
+stop_conditions:
+  no_source_of_record:
+    description: A controlled object/field has no confirmed source of truth.
+    detect: attestation
+    artifact: docs/data/SOURCE_OF_RECORD_REGISTER.md
+    attest_line: "SOURCE-OF-RECORD-COMPLETE"
+    severity: block
+  controlled_field_without_write_policy:
+    description: A controlled field lacks an update/delete/retention write policy.
+    detect: attestation
+    artifact: docs/data/FIELD_OWNERSHIP_AND_WRITE_POLICY.md
+    attest_line: "WRITE-POLICY-COMPLETE"
+    severity: block
+  write_capability_unproven:
+    description: A write-back action has no native/preferred integration method proven by documentation, wrapper, or fallback ADR.
+    detect: attestation
+    artifact: docs/integration/NATIVE_INTEGRATION_OBJECT_MATRIX.md
+    attest_line: "WRITE-PROOF-COMPLETE"
+    severity: block
+  generic_connector_without_adr:
+    description: A generic SAP/Oracle connector is used to write without an approved ADR.
+    detect: attestation
+    artifact: docs/integration/FALLBACK_INTEGRATION_POLICY.md
+    attest_line: "GENERIC-CONNECTOR-ADR"
+    severity: block
+  controlled_action_without_approval_or_audit:
+    description: A controlled action can be submitted/approved/posted/reversed without policy + audit.
+    detect: attestation
+    artifact: docs/workflows/APPROVAL_AND_SOD_POLICY.md
+    attest_line: "APPROVAL-SOD-COMPLETE"
+    severity: block
+  screen_without_backend_action:
+    description: A screen action has no backend domain endpoint.
+    detect: scan
+    scan_rule: fake_button
+    severity: block
+  screen_without_test_mapping:
+    description: A screen contract has no field/action/test mapping.
+    detect: attestation
+    artifact: docs/screens/SCREEN_CONTRACT_CATALOG.md
+    attest_line: "SCREEN-TEST-MAP-COMPLETE"
+    severity: block
+  production_screen_uses_mock_governed_field:
+    description: A production screen uses a mock value for a governed field.
+    detect: scan
+    scan_rule: mock_default
+    severity: block
+  visual_only_completion:
+    description: UI marked complete on visuals without e2e proof of backend behavior.
+    detect: test
+    test: e2e
+    severity: block
+  ai_autonomous_controlled_write:
+    description: AI can autonomously approve/post a controlled transaction.
+    detect: attestation
+    artifact: docs/ai/AI_BACKBONE_AGENT_ORCHESTRATION.md
+    attest_line: "NO-AUTONOMOUS-CONTROLLED-WRITE"
+    severity: block
+  ungrounded_ai_output:
+    description: AI output cannot be grounded in source evidence / citations.
+    detect: test
+    test: ai_evals
+    severity: block
+  manual_undocumented_release_step:
+    description: Production readiness depends on a manual, undocumented step.
+    detect: attestation
+    artifact: docs/operations/OPERATING_MODEL_AND_RUNBOOKS.md
+    attest_line: "NO-MANUAL-UNDOCUMENTED-STEPS"
+    severity: block
+
+# --- Named test suites -> commands (per stack) ----------------------------
+# {workspace} is substituted with the --workspace path at runtime.
+tests:
+  typescript:
+    install:       "npm --prefix {workspace} ci"
+    typecheck:     "npm --prefix {workspace} run typecheck"
+    lint:          "npm --prefix {workspace} run lint"
+    unit:          "npm --prefix {workspace} run test:unit"
+    integration:   "npm --prefix {workspace} run test:integration"
+    contract:      "npm --prefix {workspace} run test:contract"
+    e2e:           "npm --prefix {workspace} run test:e2e"
+    accessibility: "npm --prefix {workspace} run test:a11y"
+    security:      "npm --prefix {workspace} run test:security"
+    reconciliation: "npm --prefix {workspace} run test:reconciliation"
+    performance:   "npm --prefix {workspace} run test:perf"
+    ai_evals:      "npm --prefix {workspace} run test:evals"
+    health_check:  "npm --prefix {workspace} run health"
+  java:
+    install:       "mvn -q -f {workspace}/pom.xml -DskipTests install"
+    typecheck:     "mvn -q -f {workspace}/pom.xml compile"
+    lint:          "mvn -q -f {workspace}/pom.xml spotless:check"
+    unit:          "mvn -q -f {workspace}/pom.xml test"
+    integration:   "mvn -q -f {workspace}/pom.xml verify -Pintegration"
+    contract:      "mvn -q -f {workspace}/pom.xml verify -Pcontract"
+    e2e:           "mvn -q -f {workspace}/pom.xml verify -Pe2e"
+    accessibility: "mvn -q -f {workspace}/pom.xml verify -Pa11y"
+    security:      "mvn -q -f {workspace}/pom.xml verify -Psecurity"
+    reconciliation: "mvn -q -f {workspace}/pom.xml verify -Preconciliation"
+    performance:   "mvn -q -f {workspace}/pom.xml verify -Pperf"
+    ai_evals:      "mvn -q -f {workspace}/pom.xml verify -Pevals"
+    health_check:  "mvn -q -f {workspace}/pom.xml spring-boot:run -Dcheck=health"
+  agnostic:
+    # agnostic stack emits contracts only; tests are attested, not executed
+    _attest_only: "true"
+
+# --- Challenge register cross-reference (see ERP_DELIVERY_CHALLENGE_REGISTER.md)
+challenge_index:
+  CH-01: Duplicating standard ERP capability instead of extending
+  CH-02: Clean-core violation / upgrade-unsafe customization
+  CH-03: ERP-controlled objects treated as local mutable tables
+  CH-04: Write-back capability assumed but never proven by native API
+  CH-05: Missing exception / correction / reversal / closeout paths
+  CH-06: Poor data quality & migration readiness
+  CH-07: Generic connector misuse instead of object-specific released API
+  CH-08: Idempotency / outbox / read-back / reconciliation not first-class
+  CH-09: Segregation-of-duties / four-eyes approval gaps
+  CH-10: Multi-tenant isolation & RLS weaknesses
+  CH-11: Weak value case / KPI baseline -> benefits never realized
+  CH-12: Brittle point-to-point integration; no event-driven decoupling
+  CH-13: Secrets, auth, and data-classification handling
+  CH-14: Posted-record immutability (edit instead of reverse/correct)
+  CH-15: Prompt injection (direct and indirect) in AI features
+  CH-16: Excessive agency / autonomous controlled actions
+  CH-17: No SLOs / error budgets / observability for reliability
+  CH-18: Runaway AI + cloud cost with no FinOps controls
+  CH-19: No backup / DR / rollback / incident runbooks

@@ -1,0 +1,5 @@
+# Runtime dependencies for the Enterprise AI ERP build engine.
+# Both are optional at import time (the engine degrades to clear findings if
+# missing) but required for full gate validation and pipeline parsing.
+PyYAML>=6.0
+jsonschema>=4.18

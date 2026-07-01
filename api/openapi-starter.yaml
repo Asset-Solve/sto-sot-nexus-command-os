@@ -1,0 +1,47 @@
+openapi: 3.1.0
+info:
+  title: Enterprise AI ERP API
+  version: 0.1.0
+paths:
+  /api/v1/health:
+    get:
+      summary: Health check
+      responses:
+        '200': { description: OK }
+  /api/v1/lookups/{objectType}:
+    get:
+      summary: Connector-backed lookup
+      parameters:
+        - name: objectType
+          in: path
+          required: true
+          schema: { type: string }
+        - name: tenantId
+          in: query
+          required: true
+          schema: { type: string }
+        - name: sourceMode
+          in: query
+          schema: { enum: [SIMULATOR, SANDBOX, LIVE] }
+      responses:
+        '200': { description: Lookup results }
+  /api/v1/transactions/{transactionId}/actions:
+    post:
+      summary: Execute workflow action
+      parameters:
+        - name: transactionId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Action result }
+  /api/v1/transactions/{transactionId}/payload-preview:
+    get:
+      summary: Get payload preview before release
+      responses:
+        '200': { description: Payload preview }
+  /api/v1/outbox/{outboxId}/replay-request:
+    post:
+      summary: Request approved replay of failed outbox item
+      responses:
+        '202': { description: Replay approval requested }

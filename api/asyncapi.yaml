@@ -1,0 +1,28 @@
+asyncapi: 3.0.0
+info:
+  title: Enterprise AI ERP Events
+  version: 0.1.0
+channels:
+  transaction.status.changed:
+    address: transaction.status.changed
+    messages:
+      TransactionStatusChanged:
+        payload:
+          type: object
+          properties:
+            transactionId: { type: string }
+            tenantId: { type: string }
+            previousStatus: { type: string }
+            newStatus: { type: string }
+            correlationId: { type: string }
+  outbox.posted:
+    address: outbox.posted
+    messages:
+      OutboxPosted:
+        payload:
+          type: object
+          properties:
+            outboxId: { type: string }
+            targetSystem: { type: string }
+            targetDocumentNumber: { type: string }
+            correlationId: { type: string }

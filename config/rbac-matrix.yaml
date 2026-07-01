@@ -1,0 +1,27 @@
+roles:
+  viewer:
+    can: [read]
+  analyst:
+    can: [read, draft_recommendation]
+  creator:
+    can: [read, create_draft, submit]
+  supervisor:
+    can: [read, approve, reject, request_correction]
+  finance_approver:
+    can: [approve_finance_impact]
+  safety_approver:
+    can: [approve_safety_review]
+  integration_admin:
+    can: [configure_connector, test_connector, view_payloads]
+  release_manager:
+    can: [approve_replay, promote_release]
+segregation_of_duties:
+  four_eyes:
+    enabled: true
+    proposer_cannot_final_approve: true
+controlled_actions:
+  - release_to_posting
+  - replay_outbox
+  - reverse_posted_transaction
+  - approve_permit_related_action
+  - approve_finance_posting

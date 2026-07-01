@@ -1,0 +1,129 @@
+# Connector registry - each entry conforms to schemas/connector-definition.schema.json
+# (Stage 09 gate validates every entry). Modes: SIMULATOR | SANDBOX | LIVE.
+# currentMode defaults to SIMULATOR so a fresh build never writes to a live ERP.
+connectors:
+  sap_s4hana:
+    connectorId: sap_s4hana
+    displayName: SAP S/4HANA
+    systemType: SAP
+    nativeIntegrationMethod: released_odata_api_via_btp_destination_and_cloud_connector
+    supportedBusinessObjects: [Equipment, FunctionalLocation, MaintenanceNotification, MaintenanceOrder, OperationConfirmation, CATS, PurchaseRequisition, PurchaseOrder, GoodsMovement, ServiceEntrySheet, BusinessPartner, Material, WBS, CostCenter]
+    supportedActions: { read: true, create: true, update: conditional, post: true, reverse: true }
+    supportedModes: [SIMULATOR, SANDBOX, LIVE]
+    currentMode: SIMULATOR
+    authType: oauth2_saml_bearer
+    destinationName: S4H_DEST
+    cloudConnectorRequired: true
+    requiresPayloadPreview: true
+    requiresOutboxForWrites: true
+    retryPolicy: { strategy: exponential_backoff, maxRetries: 5 }
+    deadLetterPolicy: { enabled: true, store: outbox_dlq }
+    owner: integration-platform-team
+    healthStatus: unknown
+  sap_integration_suite:
+    connectorId: sap_integration_suite
+    displayName: SAP Integration Suite (Cloud Integration / API Mgmt)
+    systemType: SAP_MIDDLEWARE
+    nativeIntegrationMethod: cloud_integration_iflow
+    supportedBusinessObjects: []
+    supportedActions: { orchestrate: true, map: true, route: true, retry: true, dlq: true, replay: true, monitor: true }
+    supportedModes: [SANDBOX, LIVE]
+    currentMode: SANDBOX
+    authType: oauth2_client_credentials
+    owner: integration-platform-team
+    healthStatus: unknown
+  sap_event_mesh:
+    connectorId: sap_event_mesh
+    displayName: SAP Event Mesh
+    systemType: SAP_EVENTING
+    nativeIntegrationMethod: event_mesh_pub_sub
+    supportedBusinessObjects: []
+    supportedActions: { publish: true, subscribe: true, status_events: true }
+    supportedModes: [SANDBOX, LIVE]
+    currentMode: SANDBOX
+    authType: oauth2_client_credentials
+    owner: integration-platform-team
+    healthStatus: unknown
+  oracle_fusion:
+    connectorId: oracle_fusion
+    displayName: Oracle Fusion Cloud Applications
+    systemType: ORACLE
+    nativeIntegrationMethod: oracle_fusion_rest_api
+    supportedBusinessObjects: [Financials, Procurement, SCM, HCM, Projects, Maintenance]
+    supportedActions: { read: true, create: true, update: conditional, post: true }
+    supportedModes: [SIMULATOR, SANDBOX, LIVE]
+    currentMode: SIMULATOR
+    authType: oauth2_least_privilege
+    requiresPayloadPreview: true
+    requiresOutboxForWrites: true
+    retryPolicy: { strategy: exponential_backoff, maxRetries: 5 }
+    deadLetterPolicy: { enabled: true, store: parking_table }
+    owner: integration-platform-team
+    healthStatus: unknown
+  oracle_integration_cloud:
+    connectorId: oracle_integration_cloud
+    displayName: Oracle Integration Cloud (OIC)
+    systemType: ORACLE_MIDDLEWARE
+    nativeIntegrationMethod: oic_integration_flow
+    supportedBusinessObjects: []
+    supportedActions: { integrate: true, process_automation: true, adapters: true, approvals: true }
+    supportedModes: [SANDBOX, LIVE]
+    currentMode: SANDBOX
+    authType: oauth2_client_credentials
+    owner: integration-platform-team
+    healthStatus: unknown
+  maximo:
+    connectorId: maximo
+    displayName: IBM Maximo
+    systemType: NON_SAP_EAM
+    nativeIntegrationMethod: maximo_rest_oslc
+    supportedBusinessObjects: [Asset, WorkOrder, ServiceRequest, Inventory]
+    supportedActions: { read: true, create: true, update: true }
+    supportedModes: [SIMULATOR, SANDBOX, LIVE]
+    currentMode: SIMULATOR
+    authType: api_key
+    requiresOutboxForWrites: true
+    owner: eam-integration-team
+    healthStatus: unknown
+  service_now:
+    connectorId: service_now
+    displayName: ServiceNow
+    systemType: NON_SAP_ITSM
+    nativeIntegrationMethod: servicenow_table_rest_api
+    supportedBusinessObjects: [Incident, Change, Task, CMDB]
+    supportedActions: { read: true, create: true, update: true }
+    supportedModes: [SIMULATOR, SANDBOX, LIVE]
+    currentMode: SIMULATOR
+    authType: oauth2
+    owner: itsm-integration-team
+    healthStatus: unknown
+  aveva_pi:
+    connectorId: aveva_pi
+    displayName: AVEVA PI (historian)
+    systemType: OT_HISTORIAN
+    nativeIntegrationMethod: pi_web_api
+    supportedBusinessObjects: [PiPoint, PiTag, PiStream]
+    supportedActions: { read: true, batch_read: true, stream: true, write: blocked_by_default }
+    supportedModes: [SIMULATOR, SANDBOX, LIVE]
+    currentMode: SIMULATOR
+    authType: kerberos_or_bearer
+    owner: ot-data-team
+    healthStatus: unknown
+  opc_ua:
+    connectorId: opc_ua
+    displayName: OPC UA (OT)
+    systemType: OT_PROTOCOL
+    nativeIntegrationMethod: opc_ua_client
+    supportedBusinessObjects: [Node, Variable, Subscription]
+    supportedActions: { read: true, subscribe: true, write: blocked_by_default }
+    supportedModes: [SANDBOX, LIVE]
+    currentMode: SANDBOX
+    authType: x509_certificate
+    owner: ot-data-team
+    healthStatus: unknown
+
+# Fallback policy (not a connector definition; governs generic access).
+fallback_policy:
+  generic_rest: allowed_only_if_native_unavailable_and_approved
+  generic_sftp: allowed_for_batch_import_export_only
+  direct_database_write: prohibited_for_systems_of_record

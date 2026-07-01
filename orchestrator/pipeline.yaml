@@ -1,0 +1,563 @@
+# =============================================================================
+# Enterprise AI ERP Build Pipeline - Declarative 00 -> 20 execution DAG
+# =============================================================================
+# This manifest is the single source of truth for the automation engine.
+# `orchestrator/run.py` reads it, and for each stage:
+#   1. builds an agent handoff packet from the stage spec,
+#   2. invokes the configured driver (Codex / Claude / dry-run) + agent swarm,
+#   3. collects the declared artifacts,
+#   4. runs the programmatic gate in `orchestrator/gates/validate.py`
+#      against `gate:` + `orchestrator/gates/rules.yaml`,
+#   5. writes a gate report, and in guided mode pauses for human approval.
+#
+# You give ONE thing: the use case. The engine drives the rest and stops at
+# every gate for you to validate the layer before it proceeds.
+# =============================================================================
+version: 1
+name: enterprise-ai-erp-build
+description: >-
+  Turn a single ERP/SaaS use case into an enterprise-grade, SAP/Oracle-integration-ready
+  transactional web application through 21 gated stages driven by a Codex/Claude agent swarm.
+
+# ----------------------------------------------------------------------------
+# Global defaults (override on the CLI: --mode, --driver, --stack, --workspace)
+# ----------------------------------------------------------------------------
+defaults:
+  mode: guided_gates          # guided_gates | full_auto_draft | repair | implementation_only
+  driver: auto                # auto (route per stage) | codex | claude | dryrun
+  stack: typescript           # typescript | java | agnostic
+  workspace: ./build          # target repo the application is generated into
+  human_in_the_loop: true     # guided_gates forces this true regardless
+  max_parallel_readonly: 4    # read-only research/review subagents may fan out
+  stop_on_forbidden_pattern: true
+
+settings:
+  run_state: orchestrator/state/run-state.json
+  approvals_ledger: orchestrator/state/approvals.jsonl
+  gate_reports_dir: docs/governance/gate-reports
+  evidence_dir: docs/release/evidence
+  scorecards: docs/governance/STAGE_GATE_SCORECARDS.md
+  challenge_register: docs/governance/ERP_DELIVERY_CHALLENGE_REGISTER.md
+  build_gates: config/build-gates.yaml
+  intake_schema: schemas/use-case-intake.schema.json
+  gate_report_schema: schemas/stage-gate-report.schema.json
+  slice_schema: schemas/implementation-slice.schema.json
+  bootstrap_sync_from_v1: true   # Stage 00 materializes unchanged files from the original pack
+
+# ----------------------------------------------------------------------------
+# Driver routing by work type (from CODEX_CLAUDE_AGENT_SWARM_RUNBOOK.md)
+# `auto` driver resolves a stage to one of these surfaces.
+# ----------------------------------------------------------------------------
+routing:
+  orchestration: main         # stage decisions + gate synthesis stay on the main thread
+  long_form_reasoning: claude  # product/process/architecture reasoning
+  research: claude            # parallel read-only research
+  review: claude              # independent challenge/review agents
+  repo_inspection: codex      # code reading, edits, tests, browser verification
+  implementation: codex       # one bounded implementation agent per slice
+  release_evidence: main
+
+# ----------------------------------------------------------------------------
+# Agent swarm registry (from MASTER_ENTERPRISE_AI_ERP_BUILD_PROMPT.md)
+# write_scope constrains which path globs an agent may modify (enforced by the
+# runner so two write-heavy agents never touch the same files concurrently).
+# ----------------------------------------------------------------------------
+agents:
+  - id: orchestrator
+    role: Principal delivery orchestrator
+    surface: main
+    write: gate_approved_only
+    write_scope: ["docs/governance/**"]
+  - id: domain_research
+    role: Domain / market / capability research
+    surface: claude
+    write: none
+  - id: fit_to_standard
+    role: SAP/Oracle native-capability & clean-core gap analysis
+    surface: claude
+    write: none
+  - id: sap_integration
+    role: SAP API / BTP / Integration Suite mapping
+    surface: claude
+    write: limited
+    write_scope: ["docs/integration/**"]
+  - id: oracle_integration
+    role: Oracle Fusion / OIC / VBCS mapping
+    surface: claude
+    write: limited
+    write_scope: ["docs/integration/**"]
+  - id: non_sap_integration
+    role: Maximo / ServiceNow / historian / OT / WMS mapping
+    surface: claude
+    write: limited
+    write_scope: ["docs/integration/**"]
+  - id: data_model
+    role: Canonical + physical data model
+    surface: codex
+    write: owned
+    write_scope: ["packages/schemas/**", "schemas/**", "database/migrations/**", "docs/domain/**", "docs/data/**"]
+  - id: workflow_controls
+    role: State model, approvals, SoD
+    surface: codex
+    write: owned
+    write_scope: ["packages/workflows/**", "packages/rules/**", "config/rbac-matrix.yaml", "docs/workflows/**"]
+  - id: uiux
+    role: Transactional workbench UI
+    surface: codex
+    write: owned
+    write_scope: ["apps/web/**", "docs/screens/**"]
+  - id: backend
+    role: APIs, domain services, workers
+    surface: codex
+    write: owned
+    write_scope: ["apps/api/**", "apps/worker/**", "packages/domain/**", "packages/connectors/**", "api/**"]
+  - id: security_privacy
+    role: Threat model, controls, security tests
+    surface: claude
+    write: limited
+    write_scope: ["packages/security/**", "docs/security/**", "tests/security/**"]
+  - id: qa_evals
+    role: Validation evidence, tests, AI evals
+    surface: codex
+    write: owned
+    write_scope: ["tests/**", "packages/ai/evals/**"]
+  - id: sre_devops
+    role: CI/CD, observability, runbooks
+    surface: codex
+    write: owned
+    write_scope: ["infra/**", ".github/**", "packages/observability/**", "docs/operations/**"]
+  - id: release_governance
+    role: Release evidence pack
+    surface: main
+    write: limited
+    write_scope: ["docs/release/**", "docs/governance/**"]
+
+# ----------------------------------------------------------------------------
+# The 21 stages. `blocks` encodes the DAG; the runner executes in `id` order
+# but refuses to start a stage whose `depends_on` gates are not APPROVED.
+# Every `gate` block is validated programmatically before human approval.
+# ----------------------------------------------------------------------------
+stages:
+  - id: "00"
+    name: Permanent Build Rules
+    layer: governance
+    prompt: prompts/00_permanent_rules.md
+    driver: main
+    agents: [orchestrator]
+    depends_on: []
+    inputs:
+      - MASTER_ENTERPRISE_AI_ERP_BUILD_PROMPT.md
+      - EXECUTION_SEQUENCE_00_TO_20.md
+      - CODEX.md
+      - CLAUDE.md
+      - AGENTS.md
+      - config/build-gates.yaml
+    produces:
+      - docs/governance/ASSUMPTIONS_REGISTER.md
+      - docs/governance/BUILD_CONTRACT_ACK.md
+    gate:
+      scorecard: stage-00
+      requires_artifacts: [docs/governance/ASSUMPTIONS_REGISTER.md, docs/governance/BUILD_CONTRACT_ACK.md]
+      forbidden_pattern_rules: [generic_crud, dashboard_only, frontend_direct_erp]
+      pass_threshold: hard
+    blocks: ["01"]
+
+  - id: "01"
+    name: Use-Case Intake & Problem Framing
+    layer: discovery
+    prompt: prompts/01_use_case_ideation_research.md
+    driver: auto
+    route: long_form_reasoning
+    agents: [orchestrator, domain_research]
+    depends_on: ["00"]
+    inputs: [docs/domain/USE_CASE_RESEARCH_WORKFLOW.md]
+    produces:
+      - docs/domain/USE_CASE_INTAKE.md
+      - docs/domain/ASSUMPTIONS_AND_OPEN_QUESTIONS.md
+    gate:
+      scorecard: stage-01
+      requires_artifacts: [docs/domain/USE_CASE_INTAKE.md]
+      schema_checks:
+        - { file: docs/domain/USE_CASE_INTAKE.md, schema: schemas/use-case-intake.schema.json, extract: frontmatter_json }
+      pass_threshold: hard
+    blocks: ["02"]
+
+  - id: "02"
+    name: Market, Industry & Fit-to-Standard Research
+    layer: discovery
+    prompt: prompts/01_use_case_ideation_research.md
+    driver: auto
+    route: research
+    agents: [domain_research, fit_to_standard]
+    parallel: true
+    depends_on: ["01"]
+    inputs: [docs/domain/FUNCTIONAL_CAPABILITY_MATRIX_TEMPLATE.md, docs/integration/SAP_ORACLE_NATIVE_INTEGRATION_MATRIX.md]
+    produces:
+      - docs/domain/MARKET_CAPABILITY_RESEARCH.md
+      - docs/domain/FIT_TO_STANDARD_AND_EXTENSION_GAP.md
+      - docs/domain/PAIN_POINT_AND_GAP_ANALYSIS.md
+      - docs/domain/VALUE_CASE_AND_KPI_MODEL.md
+    gate:
+      scorecard: stage-02
+      requires_artifacts: [docs/domain/FIT_TO_STANDARD_AND_EXTENSION_GAP.md, docs/domain/VALUE_CASE_AND_KPI_MODEL.md]
+      challenge_refs: [CH-01, CH-02, CH-11]   # duplicating-standard-ERP, clean-core, value realization
+      pass_threshold: hard
+    blocks: ["03"]
+
+  - id: "03"
+    name: Current Application Gap Audit
+    layer: discovery
+    prompt: templates/SCREEN_GAP_AUDIT_TEMPLATE.md
+    driver: auto
+    route: repo_inspection
+    agents: [uiux, backend, qa_evals]
+    depends_on: ["02"]
+    inputs: [templates/SCREEN_GAP_AUDIT_TEMPLATE.md]
+    produces:
+      - docs/audit/CURRENT_STATE_AUDIT.md
+      - docs/audit/SCREEN_GAP_AUDIT.md
+      - docs/audit/TECHNICAL_DEBT_REGISTER.md
+    gate:
+      scorecard: stage-03
+      requires_artifacts: [docs/audit/SCREEN_GAP_AUDIT.md]
+      forbidden_pattern_rules: [hardcoded_dropdown, fake_button, frontend_direct_erp, mock_default]
+      pass_threshold: soft   # audit records findings; it does not block on existing debt
+    blocks: ["04"]
+
+  - id: "04"
+    name: Business Capability Model
+    layer: domain
+    prompt: prompts/02_domain_process_model.md
+    driver: auto
+    route: long_form_reasoning
+    agents: [domain_research]
+    depends_on: ["02"]
+    inputs: [docs/domain/FUNCTIONAL_CAPABILITY_MATRIX_TEMPLATE.md]
+    produces:
+      - docs/domain/BUSINESS_CAPABILITY_MODEL.md
+      - docs/domain/FUNCTIONAL_CAPABILITY_MATRIX.md
+      - docs/domain/PERSONA_AND_JOBS_TO_BE_DONE.md
+    gate:
+      scorecard: stage-04
+      requires_artifacts: [docs/domain/BUSINESS_CAPABILITY_MODEL.md, docs/domain/FUNCTIONAL_CAPABILITY_MATRIX.md]
+      pass_threshold: hard
+    blocks: ["05"]
+
+  - id: "05"
+    name: Process Decomposition
+    layer: domain
+    prompt: prompts/02_domain_process_model.md
+    driver: auto
+    route: long_form_reasoning
+    agents: [domain_research, workflow_controls]
+    depends_on: ["04"]
+    inputs: [docs/domain/PROCESS_DECOMPOSITION_TEMPLATE.md]
+    produces:
+      - docs/domain/PROCESS_DECOMPOSITION.md
+      - docs/domain/PROCESS_EVENT_CATALOG.md
+    gate:
+      scorecard: stage-05
+      requires_artifacts: [docs/domain/PROCESS_DECOMPOSITION.md]
+      challenge_refs: [CH-05]   # exception/reversal/closeout paths missing
+      pass_threshold: hard
+    blocks: ["06"]
+
+  - id: "06"
+    name: Master / Transaction / Reference / Audit Data Model
+    layer: data
+    prompt: prompts/03_data_object_model.md
+    driver: auto
+    route: implementation
+    agents: [data_model]
+    depends_on: ["05"]
+    inputs: [docs/domain/DATA_MODEL_CANONICAL_ERP_TEMPLATE.md]
+    produces:
+      - docs/domain/MASTER_DATA_OBJECT_MODEL.md
+      - docs/domain/TRANSACTIONAL_DATA_OBJECT_MODEL.md
+      - docs/domain/REFERENCE_CONFIGURATION_OBJECT_MODEL.md
+      - docs/domain/AI_EVIDENCE_OBJECT_MODEL.md
+    gate:
+      scorecard: stage-06
+      requires_artifacts: [docs/domain/TRANSACTIONAL_DATA_OBJECT_MODEL.md]
+      challenge_refs: [CH-03, CH-06]  # ERP objects treated as local tables; data quality/migration
+      pass_threshold: hard
+    blocks: ["07"]
+
+  - id: "07"
+    name: Source-of-Record & Data Ownership
+    layer: data
+    prompt: prompts/03_data_object_model.md
+    driver: auto
+    route: long_form_reasoning
+    agents: [data_model, fit_to_standard]
+    depends_on: ["06"]
+    inputs: []
+    produces:
+      - docs/data/SOURCE_OF_RECORD_REGISTER.md
+      - docs/data/FIELD_OWNERSHIP_AND_WRITE_POLICY.md
+    gate:
+      scorecard: stage-07
+      requires_artifacts: [docs/data/SOURCE_OF_RECORD_REGISTER.md, docs/data/FIELD_OWNERSHIP_AND_WRITE_POLICY.md]
+      stop_conditions: [no_source_of_record, controlled_field_without_write_policy]
+      pass_threshold: hard
+    blocks: ["08"]
+
+  - id: "08"
+    name: Native Integration Matrix
+    layer: integration
+    prompt: prompts/04_native_integration_matrix.md
+    driver: auto
+    route: research
+    agents: [sap_integration, oracle_integration, non_sap_integration]
+    parallel: true
+    depends_on: ["07"]
+    inputs: [docs/integration/SAP_ORACLE_NATIVE_INTEGRATION_MATRIX.md]
+    produces:
+      - docs/integration/NATIVE_INTEGRATION_OBJECT_MATRIX.md
+      - docs/integration/SAP_OBJECT_TO_API_MAPPING.md
+      - docs/integration/ORACLE_OBJECT_TO_API_MAPPING.md
+      - docs/integration/NON_SAP_OBJECT_TO_API_MAPPING.md
+      - docs/integration/FALLBACK_INTEGRATION_POLICY.md
+    gate:
+      scorecard: stage-08
+      requires_artifacts: [docs/integration/NATIVE_INTEGRATION_OBJECT_MATRIX.md]
+      stop_conditions: [write_capability_unproven, generic_connector_without_adr]
+      challenge_refs: [CH-04, CH-07, CH-12]  # native write proof, clean-core API, integration brittleness
+      pass_threshold: hard
+    blocks: ["09"]
+
+  - id: "09"
+    name: Connector Capability Catalog
+    layer: integration
+    prompt: prompts/06_connector_registry.md
+    driver: auto
+    route: implementation
+    agents: [backend]
+    depends_on: ["08"]
+    inputs: [docs/connectors/CONNECTOR_AND_PLUGIN_CATALOG.md, config/connector-registry.yaml]
+    produces:
+      - docs/connectors/CONNECTOR_CAPABILITY_CATALOG.md
+      - config/connector-registry.yaml
+    gate:
+      scorecard: stage-09
+      requires_artifacts: [docs/connectors/CONNECTOR_CAPABILITY_CATALOG.md]
+      schema_checks:
+        - { file: config/connector-registry.yaml, schema: schemas/connector-definition.schema.json, extract: "yaml_each:connectors" }
+      pass_threshold: hard
+    blocks: ["10"]
+
+  - id: "10"
+    name: Canonical Transaction Model
+    layer: domain
+    prompt: prompts/08_canonical_transaction_model.md
+    driver: auto
+    route: implementation
+    agents: [data_model, workflow_controls]
+    depends_on: ["09"]
+    inputs: [schemas/canonical-transaction.schema.json]
+    produces:
+      - schemas/canonical-transaction.schema.json
+      - docs/domain/CANONICAL_TRANSACTION_MODEL.md
+      - docs/domain/POSTING_PATH_DECISION_ENGINE.md
+    gate:
+      scorecard: stage-10
+      requires_artifacts: [docs/domain/CANONICAL_TRANSACTION_MODEL.md]
+      schema_checks:
+        - { file: schemas/canonical-transaction.schema.json, schema: __meta_schema__, extract: json }
+      challenge_refs: [CH-08]  # idempotency / reconciliation not first-class
+      pass_threshold: hard
+    blocks: ["11"]
+
+  - id: "11"
+    name: Workflow & Approval Model
+    layer: workflow
+    prompt: prompts/09_workflow_approval_audit.md
+    driver: auto
+    route: implementation
+    agents: [workflow_controls, security_privacy]
+    depends_on: ["10"]
+    inputs: [config/rbac-matrix.yaml]
+    produces:
+      - docs/workflows/WORKFLOW_STATE_MODEL.md
+      - docs/workflows/APPROVAL_AND_SOD_POLICY.md
+      - config/rbac-matrix.yaml
+    gate:
+      scorecard: stage-11
+      requires_artifacts: [docs/workflows/WORKFLOW_STATE_MODEL.md, docs/workflows/APPROVAL_AND_SOD_POLICY.md]
+      stop_conditions: [controlled_action_without_approval_or_audit]
+      challenge_refs: [CH-09]  # SoD / four-eyes gaps
+      pass_threshold: hard
+    blocks: ["12"]
+
+  - id: "12"
+    name: UI/UX Transactional Screen Contracts
+    layer: experience
+    prompt: prompts/11_uiux_transactional_workbenches.md
+    driver: auto
+    route: long_form_reasoning
+    agents: [uiux]
+    depends_on: ["11"]
+    inputs: [docs/screens/TRANSACTIONAL_SCREEN_CONTRACT_TEMPLATE.md, docs/screens/UI_UX_SCREEN_BLUEPRINTS.md]
+    produces:
+      - docs/screens/SCREEN_CONTRACT_CATALOG.md
+      - docs/screens/UI_UX_SCREEN_BLUEPRINTS.md
+    gate:
+      scorecard: stage-12
+      requires_artifacts: [docs/screens/SCREEN_CONTRACT_CATALOG.md]
+      stop_conditions: [screen_without_backend_action, screen_without_test_mapping]
+      pass_threshold: hard
+    blocks: ["13"]
+
+  - id: "13"
+    name: Enterprise Repo Skeleton
+    layer: platform
+    prompt: prompts/05_repo_architecture_skeleton.md
+    driver: auto
+    route: implementation
+    agents: [backend, sre_devops]
+    depends_on: ["12"]
+    inputs: [docs/architecture/ENTERPRISE_LAYERED_ARCHITECTURE.md]
+    produces:
+      - docs/architecture/ENTERPRISE_LAYERED_ARCHITECTURE.md
+    workspace_scaffold: true    # runner writes the app skeleton into `workspace`
+    gate:
+      scorecard: stage-13
+      requires_build: [install, typecheck, health_check]
+      pass_threshold: hard
+    blocks: ["14"]
+
+  - id: "14"
+    name: Backend Foundation (tenant, auth, RLS, audit, outbox, engine)
+    layer: platform
+    prompt: prompts/16_transaction_service_implementation.md
+    driver: codex
+    route: implementation
+    agents: [backend, security_privacy]
+    depends_on: ["13"]
+    inputs: [api/openapi.yaml, api/asyncapi.yaml]
+    produces:
+      - api/openapi.yaml
+      - api/asyncapi.yaml
+    gate:
+      scorecard: stage-14
+      requires_build: [install, typecheck, lint]
+      requires_tests: [unit, integration, contract, security]
+      challenge_refs: [CH-10, CH-13]  # multi-tenant isolation, RLS/secrets
+      pass_threshold: hard
+    blocks: ["15"]
+
+  - id: "15"
+    name: Connector-Backed Lookups
+    layer: platform
+    prompt: prompts/07_lookup_services.md
+    driver: codex
+    route: implementation
+    agents: [backend]
+    depends_on: ["14"]
+    inputs: []
+    produces: []
+    gate:
+      scorecard: stage-15
+      forbidden_pattern_rules: [hardcoded_dropdown, mock_default]
+      requires_tests: [unit, integration, contract]
+      stop_conditions: [production_screen_uses_mock_governed_field]
+      pass_threshold: hard
+    blocks: ["16"]
+
+  - id: "16"
+    name: Transaction Service Implementation
+    layer: platform
+    prompt: prompts/16_transaction_service_implementation.md
+    driver: codex
+    route: implementation
+    agents: [backend, workflow_controls]
+    depends_on: ["15"]
+    inputs: [prompts/10_outbox_readback_reconciliation.md]
+    produces: []
+    slice_driven: true          # decomposed into implementation slices (see slice schema)
+    gate:
+      scorecard: stage-16
+      requires_tests: [unit, integration, contract, reconciliation]
+      challenge_refs: [CH-08, CH-14]  # outbox/read-back/reconcile; posted-record immutability
+      pass_threshold: hard
+    blocks: ["17"]
+
+  - id: "17"
+    name: UI Implementation & Verification
+    layer: experience
+    prompt: prompts/17_ui_implementation_and_verification.md
+    driver: codex
+    route: implementation
+    agents: [uiux, qa_evals]
+    depends_on: ["16"]
+    inputs: []
+    produces: []
+    gate:
+      scorecard: stage-17
+      forbidden_pattern_rules: [fake_button, hardcoded_dropdown, frontend_direct_erp]
+      requires_tests: [e2e, accessibility]
+      stop_conditions: [visual_only_completion]
+      pass_threshold: hard
+    blocks: ["18"]
+
+  - id: "18"
+    name: AI Backbone & Governance
+    layer: ai
+    prompt: prompts/18_ai_backbone_governance.md
+    driver: auto
+    route: implementation
+    agents: [backend, security_privacy, qa_evals]
+    depends_on: ["17"]
+    inputs: [docs/ai/AI_BACKBONE_AGENT_ORCHESTRATION.md, config/model-router.yaml]
+    produces:
+      - docs/ai/AI_BACKBONE_AGENT_ORCHESTRATION.md
+      - config/model-router.yaml
+    gate:
+      scorecard: stage-18
+      requires_tests: [ai_evals, security]
+      stop_conditions: [ai_autonomous_controlled_write, ungrounded_ai_output]
+      challenge_refs: [CH-15, CH-16]  # prompt injection / indirect; excessive agency
+      pass_threshold: hard
+    blocks: ["19"]
+
+  - id: "19"
+    name: Production Readiness & Operating Model
+    layer: operations
+    prompt: prompts/19_production_readiness_operating_model.md
+    driver: auto
+    route: implementation
+    agents: [sre_devops, security_privacy]
+    depends_on: ["18"]
+    inputs: [docs/security/PRODUCTION_READINESS_CHECKLIST.md, docs/operations/OPERATING_MODEL_AND_RUNBOOKS.md]
+    produces:
+      - docs/security/PRODUCTION_READINESS_CHECKLIST.md
+      - docs/operations/OPERATING_MODEL_AND_RUNBOOKS.md
+      - docs/testing/VALIDATION_EVIDENCE_PACK.md
+    gate:
+      scorecard: stage-19
+      requires_tests: [performance, security]
+      stop_conditions: [manual_undocumented_release_step]
+      challenge_refs: [CH-17, CH-18, CH-19]  # SLOs/error budgets, cost/FinOps, DR/backup
+      pass_threshold: hard
+    blocks: ["20"]
+
+  - id: "20"
+    name: Acceptance & Release Evidence
+    layer: release
+    prompt: prompts/20_acceptance_release_evidence.md
+    driver: main
+    route: release_evidence
+    agents: [release_governance, qa_evals, security_privacy, sre_devops]
+    depends_on: ["19"]
+    inputs: []
+    produces:
+      - docs/release/RELEASE_DECISION.md
+      - docs/release/RELEASE_EVIDENCE_PACK.md
+      - docs/release/POST_LAUNCH_MONITORING_PLAN.md
+    gate:
+      scorecard: stage-20
+      requires_tests: [lint, typecheck, unit, integration, contract, e2e, accessibility, security, reconciliation, performance, ai_evals]
+      requires_artifacts: [docs/release/RELEASE_DECISION.md, docs/release/RELEASE_EVIDENCE_PACK.md]
+      decision_values: [go, go_with_exceptions, no_go]
+      pass_threshold: hard
+    blocks: []

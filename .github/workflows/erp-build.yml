@@ -1,0 +1,96 @@
+name: erp-build-engine
+
+# CI for the Enterprise AI ERP build engine itself:
+#   1. lint + parse the pipeline / rules / schemas (no secrets needed)
+#   2. dry-run the full 00->20 flow and assert every gate passes offline
+#   3. (optional) run a real Codex-driven stage when secrets are present
+on:
+  push:
+    paths:
+      - "orchestrator/**"
+      - "tools/**"
+      - "schemas/**"
+      - "config/**"
+      - ".github/workflows/erp-build.yml"
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      use_case:
+        description: "Use case to build (only input needed)"
+        required: false
+        default: "Plant maintenance work-order cockpit integrated with SAP PM"
+
+jobs:
+  validate-engine:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install engine deps
+        run: pip install -r orchestrator/requirements.txt
+
+      - name: Parse pipeline, rules, and all schemas
+        run: |
+          python - <<'PY'
+          import json, glob, sys, yaml
+          yaml.safe_load(open("orchestrator/pipeline.yaml"))
+          yaml.safe_load(open("orchestrator/gates/rules.yaml"))
+          bad = 0
+          for f in glob.glob("schemas/*.json") + glob.glob("orchestrator/schemas/*.json"):
+              try:
+                  json.load(open(f))
+              except Exception as e:
+                  print(f"INVALID JSON: {f}: {e}"); bad += 1
+          sys.exit(bad)
+
+      - name: Dry-run the full 00->20 pipeline (offline, no API keys)
+        run: |
+          python orchestrator/run.py \
+            --use-case "${{ github.event.inputs.use_case || 'CI smoke-test use case: purchase-requisition approval cockpit for SAP MM' }}" \
+            --driver dryrun --mode full_auto_draft --yes --workspace ./build
+
+      - name: Assert every gate passed
+        run: |
+          python orchestrator/gates/validate.py --json > gate-report.json || true
+          python - <<'PY'
+          import json
+          d = json.load(open("gate-report.json"))
+          fails = [s["stage_id"] for s in d["stages"] if not s["passed"]]
+          assert d["passed"], f"gates failed: {fails}"
+          print("all", len(d["stages"]), "stage gates passed in dry-run")
+          PY
+
+      - name: Lint pack (parse yaml/json + leftover-marker scan with allow-list)
+        run: python tools/lint_pack.py
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: gate-reports
+          path: |
+            docs/governance/gate-reports/**
+            gate-report.json
+
+  codex-live-stage:
+    # Runs a real Codex-driven stage only when an API key secret is configured.
+    runs-on: ubuntu-latest
+    needs: validate-engine
+    if: ${{ github.event_name == 'workflow_dispatch' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - run: pip install -r orchestrator/requirements.txt
+      - name: Run Stage 01 with Codex (guarded by secret)
+        env:
+          CODEX_API_KEY: ${{ secrets.CODEX_API_KEY }}
+        run: |
+          if [ -z "$CODEX_API_KEY" ]; then
+            echo "No CODEX_API_KEY secret set; skipping live stage."; exit 0
+          fi
+          npm i -g @openai/codex || true
+          python orchestrator/run.py \
+            --use-case "${{ github.event.inputs.use_case }}" \
+            --driver codex --stage 01 --non-interactive --allow-writes

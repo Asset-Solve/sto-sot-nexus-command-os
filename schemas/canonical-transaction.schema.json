@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "CanonicalTransaction",
+  "type": "object",
+  "required": [
+    "transactionId",
+    "tenantId",
+    "businessCapability",
+    "transactionType",
+    "status",
+    "sourceReferences",
+    "auditTrail"
+  ],
+  "properties": {
+    "transactionId": { "type": "string" },
+    "tenantId": { "type": "string" },
+    "businessCapability": { "type": "string" },
+    "transactionType": { "type": "string" },
+    "riskClass": {
+      "enum": ["informational", "advisory", "controlled_side_effect", "blocked_autonomous_action"]
+    },
+    "status": { "type": "string" },
+    "lifecycleState": { "type": "string" },
+    "approvalState": { "type": "string" },
+    "sourceReferences": {
+      "type": "array",
+      "items": { "type": "object" }
+    },
+    "targetReferences": {
+      "type": "array",
+      "items": { "type": "object" }
+    },
+    "businessFields": { "type": "object" },
+    "lineItems": {
+      "type": "array",
+      "items": { "type": "object" }
+    },
+    "validationResults": {
+      "type": "array",
+      "items": { "type": "object" }
+    },
+    "payloadPreview": { "type": "object" },
+    "outboxId": { "type": "string" },
+    "idempotencyKey": { "type": "string" },
+    "correlationId": { "type": "string" },
+    "targetDocumentNumber": { "type": "string" },
+    "reconciliationStatus": { "type": "string" },
+    "auditTrail": {
+      "type": "array",
+      "items": { "type": "object" }
+    },
+    "aiEvidence": {
+      "type": "array",
+      "items": { "type": "object" }
+    }
+  }
+}

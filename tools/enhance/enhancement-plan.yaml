@@ -1,0 +1,233 @@
+# =============================================================================
+# Enhancement plan - the ordered program the enhancement engine executes.
+# `tools/enhance/enhance.py` walks `items` in order and, for each target file,
+# hands an agent (Codex/Claude) the current file + brief + research refs +
+# acceptance criteria, rewrites the file in place, and verifies acceptance.
+#
+# Items already delivered by the human-led v2 pass are marked status: done so a
+# re-run does not clobber them. Everything else is status: pending and will be
+# upgraded when you run:  python tools/enhance/enhance.py --driver claude
+# =============================================================================
+version: 1
+
+# Source-backed research the briefs cite (see AI_DEVELOPMENT_COMPANY_PATTERN_RESEARCH.md
+# for the full annotated bibliography).
+references:
+  sap_clean_core: "SAP Clean Core 4-level (A-D) extensibility; released APIs only; Business Accelerator Hub"
+  sap_activate: "SAP Activate: Discover/Prepare/Explore(fit-to-standard)/Realize/Deploy/Run"
+  sap_integration_suite: "SAP Integration Suite: Cloud Integration (iFlows), API Management, Event Mesh (EDA), Open Connectors"
+  oracle_oic: "Oracle OIC/Fusion REST: OAuth least-privilege, versioning, pagination, exponential backoff + DLQ + idempotency keys, safe promotion dev->test->prod"
+  erp_failure_stats: "Only ~23% of ERP implementations succeed; top causes change mgmt + data migration + inexperienced teams (>75%); ~49% struggle with data migration; OCM 6x success"
+  anthropic_agents: "Anthropic Building Effective Agents: prompt chaining, routing, parallelization, orchestrator-workers, evaluator-optimizer; simplicity/transparency/tool-interface"
+  owasp_llm: "OWASP Top 10 for LLM Apps 2025: LLM01 Prompt Injection (direct+indirect), LLM06 Excessive Agency; separate Agentic Top 10"
+  nist_ssdf: "NIST SP 800-218 SSDF practice groups PO/PS/PW/RV; CISA Secure by Design"
+  dora: "EU DORA (in force 2025-01-10): ICT risk mgmt, 24h/72h incident reporting, third-party risk"
+  sre: "Google SRE: error budget = 1 - SLO; error-budget policy gates feature work vs reliability"
+  otel: "OpenTelemetry traces/metrics/logs; spanmetrics connector generates SLIs from traces"
+  codex_cli: "Codex exec headless: --json JSONL, stderr progress, stdout final; CODEX_API_KEY; openai/codex-action"
+  claude_code: "Claude Code headless -p; subagents isolated context; PreToolUse/PostToolUse hooks; --allowedTools guardrails"
+
+# Global acceptance applied to every item in addition to its own.
+global_acceptance:
+  - no_leftover_markers          # rejects the five tracked authoring-marker keywords
+  - min_bytes: 400
+  - parses_if_structured         # yaml/json must parse
+
+items:
+  # ---- spine already delivered in the v2 human-led pass -------------------
+  - { id: master,        path: MASTER_ENTERPRISE_AI_ERP_BUILD_PROMPT.md, status: done }
+  - { id: execseq,       path: EXECUTION_SEQUENCE_00_TO_20.md,           status: done }
+  - { id: research,      path: AI_DEVELOPMENT_COMPANY_PATTERN_RESEARCH.md, status: done }
+  - { id: swarm,         path: docs/ai/CODEX_CLAUDE_AGENT_SWARM_RUNBOOK.md, status: done }
+  - { id: challenges,    path: docs/governance/ERP_DELIVERY_CHALLENGE_REGISTER.md, status: done }
+  - { id: scorecards,    path: docs/governance/STAGE_GATE_SCORECARDS.md,  status: done }
+  - { id: readme,        path: README.md,                                 status: done }
+
+  # ---- prompts 00-20: bind each to its engine stage, gate, and challenges --
+  - id: prompts
+    glob: "prompts/[0-9][0-9]_*.md"
+    status: pending
+    surface: claude
+    brief: >-
+      Align this stage prompt with orchestrator/pipeline.yaml. Add at the top a
+      machine-readable header (stage id, engine `produces` artifacts, gate
+      criteria, challenge_refs). Make instructions imperative and testable so an
+      agent produces exactly the declared artifacts. Add an "Acceptance" section
+      matching the stage gate, and an "Anti-patterns" section citing the ERP
+      challenge register. Preserve existing intent; do not shorten below current
+      depth.
+    research_refs: [sap_clean_core, sap_activate, oracle_oic, anthropic_agents, owasp_llm]
+    acceptance:
+      - contains_any: ["Acceptance", "Gate"]
+      - contains_any: ["Anti-pattern", "Challenge", "No-go"]
+
+  # ---- Claude + Codex skills: wire to the engine + stages -----------------
+  - id: claude_skills
+    glob: ".claude/skills/*/SKILL.md"
+    status: pending
+    surface: claude
+    brief: >-
+      Update each Claude skill to reference orchestrator/run.py and its stage(s),
+      the programmatic gate it must pass, and the swarm handoff format. Add
+      explicit read-only vs write scope and the ERP no-go stop conditions.
+    research_refs: [claude_code, anthropic_agents]
+    acceptance:
+      - contains_any: ["orchestrator", "gate", "Gate"]
+
+  - id: codex_skill
+    path: .agents/skills/enterprise-ai-erp-builder/SKILL.md
+    status: pending
+    surface: claude
+    brief: >-
+      Wire the Codex skill to the automation engine: show the `codex exec` /
+      run.py invocation, the guided-gate loop, and how the skill defers gate
+      approval to the human. Keep the required-reading list and no-go rules.
+    research_refs: [codex_cli, claude_code]
+    acceptance:
+      - contains_any: ["run.py", "codex exec", "orchestrator"]
+
+  # ---- integration + connectors: clean-core, Integration Suite, OIC -------
+  - id: integration_matrix
+    path: docs/integration/SAP_ORACLE_NATIVE_INTEGRATION_MATRIX.md
+    status: pending
+    surface: claude
+    brief: >-
+      Expand into a decision matrix: object/action -> preferred native surface.
+      Add SAP clean-core levels A-D, released-API-only rule, Integration Suite
+      (Cloud Integration/iFlow, API Management, Event Mesh) and Oracle OIC/Fusion
+      REST patterns (OAuth least-privilege, versioning, pagination, backoff+DLQ+
+      idempotency, safe promotion). Add a "write-capability proof" column and a
+      fallback ADR trigger.
+    research_refs: [sap_clean_core, sap_integration_suite, oracle_oic]
+    acceptance:
+      - contains_any: ["clean core", "Clean Core", "Integration Suite"]
+      - contains_any: ["OIC", "Fusion", "Oracle"]
+
+  - id: connectors_catalog
+    path: docs/connectors/CONNECTOR_AND_PLUGIN_CATALOG.md
+    status: pending
+    surface: claude
+    brief: >-
+      Ensure every connector entry declares modes (simulator/sandbox/live),
+      auth, idempotency, payload preview, read-back, reconciliation, health, and
+      owner, matching schemas/connector-definition.schema.json.
+    research_refs: [oracle_oic, sap_integration_suite]
+
+  # ---- security / testing / operations / AI: map to standards -------------
+  - id: production_readiness
+    path: docs/security/PRODUCTION_READINESS_CHECKLIST.md
+    status: pending
+    surface: claude
+    brief: >-
+      Map every item to a standard: NIST SSDF (PO/PS/PW/RV), CISA Secure by
+      Design, OWASP (ASVS + LLM Top 10), and DORA ICT-risk + 24h/72h incident
+      reporting. Add tenant isolation/RLS, secrets, data classification.
+    research_refs: [nist_ssdf, dora, owasp_llm]
+    acceptance:
+      - contains_any: ["SSDF", "NIST"]
+      - contains_any: ["DORA", "OWASP"]
+
+  - id: testing_strategy
+    path: docs/testing/TESTING_AND_EVAL_STRATEGY.md
+    status: pending
+    surface: claude
+    brief: >-
+      Define the named suites the engine gates on (unit, integration, contract,
+      e2e, accessibility, security, reconciliation, performance, ai_evals) and
+      what each proves. Add AI eval design (grounding, citation, injection).
+    research_refs: [owasp_llm, anthropic_agents]
+
+  - id: operations_runbooks
+    path: docs/operations/OPERATING_MODEL_AND_RUNBOOKS.md
+    status: pending
+    surface: claude
+    brief: >-
+      Add SRE SLIs/SLOs/error budgets (error budget = 1 - SLO), OpenTelemetry
+      instrumentation (traces->spanmetrics->SLIs), FinOps cost controls for
+      model + cloud spend, and incident/DR/rollback runbooks.
+    research_refs: [sre, otel, dora]
+    acceptance:
+      - contains_any: ["error budget", "SLO", "SLI"]
+      - contains_any: ["OpenTelemetry", "OTel", "FinOps"]
+
+  - id: ai_backbone
+    path: docs/ai/AI_BACKBONE_AGENT_ORCHESTRATION.md
+    status: pending
+    surface: claude
+    brief: >-
+      Describe the AI backbone using Anthropic's agent patterns (orchestrator-
+      workers, evaluator-optimizer, routing) and enforce OWASP LLM controls:
+      block autonomous controlled writes (excessive agency), defend indirect
+      prompt injection, require grounding/citations/evals and an AI audit trail.
+    research_refs: [anthropic_agents, owasp_llm]
+    acceptance:
+      - contains_any: ["orchestrator", "evaluator", "routing"]
+      - contains_any: ["prompt injection", "excessive agency", "grounding"]
+
+  # ---- remaining domain / architecture / screens docs ---------------------
+  - id: domain_docs
+    glob: "docs/domain/*.md"
+    status: pending
+    surface: claude
+    brief: >-
+      Ensure each domain template separates master/transaction/reference/derived/
+      audit/AI-evidence data, and ties fields to source-of-record and write
+      policy. Reference the data-migration/quality challenge explicitly.
+    research_refs: [erp_failure_stats, sap_clean_core]
+
+  - id: architecture_doc
+    path: docs/architecture/ENTERPRISE_LAYERED_ARCHITECTURE.md
+    status: pending
+    surface: claude
+    brief: >-
+      Reconcile the 11 platform layers with the generated TypeScript repo layout
+      (apps/web, apps/api, apps/worker, packages/*) and the connector/outbox/
+      reconciliation flow. Add an event-driven decoupling section (Event Mesh).
+    research_refs: [sap_integration_suite, otel]
+
+  - id: screens_docs
+    glob: "docs/screens/*.md"
+    status: pending
+    surface: claude
+    brief: >-
+      Ensure each screen contract binds every field to a lookup + source, every
+      button to a backend action, and lists loading/empty/error/permission
+      states, audit timeline, and e2e/accessibility test mapping.
+    research_refs: [anthropic_agents]
+
+  # ---- structured configs / schemas / api: validate + extend -------------
+  - id: configs
+    glob: "config/*.yaml"
+    status: pending
+    surface: codex
+    brief: >-
+      Validate and extend each config so the engine gates can consume it. Keep
+      build-gates.yaml authoritative; ensure connector-registry.yaml conforms to
+      schemas/connector-definition.schema.json and model-router.yaml encodes AI
+      routing + guardrails.
+    research_refs: [owasp_llm, oracle_oic]
+    acceptance:
+      - parses_if_structured
+
+  - id: schemas
+    glob: "schemas/*.json"
+    status: pending
+    surface: codex
+    brief: >-
+      Keep each schema a valid JSON Schema and aligned with the engine's
+      schema_checks. Add descriptions and examples; do not weaken required lists.
+    research_refs: []
+    acceptance:
+      - valid_json_schema
+
+  - id: api_specs
+    glob: "api/*.yaml"
+    status: pending
+    surface: codex
+    brief: >-
+      Ensure openapi.yaml/asyncapi.yaml expose command + query + event endpoints
+      with correlation IDs, idempotency keys, and payload-preview/read-back
+      operations for controlled writes.
+    research_refs: [oracle_oic, sap_integration_suite]
+    acceptance:
+      - parses_if_structured

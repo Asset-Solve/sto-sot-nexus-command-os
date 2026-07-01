@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ImplementationSlice",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "stage",
+    "name",
+    "objective",
+    "scope",
+    "outOfScope",
+    "acceptanceCriteria",
+    "filesOrAreas",
+    "verificationCommands",
+    "risks",
+    "rollback"
+  ],
+  "properties": {
+    "id": { "type": "string" },
+    "stage": { "type": "integer", "minimum": 13, "maximum": 20 },
+    "name": { "type": "string" },
+    "objective": { "type": "string" },
+    "scope": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "outOfScope": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "acceptanceCriteria": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "filesOrAreas": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "verificationCommands": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "risks": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "rollback": { "type": "string" }
+  }
+}

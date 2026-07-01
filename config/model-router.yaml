@@ -1,0 +1,31 @@
+model_profiles:
+  architecture_reasoning:
+    allowed_providers: [openai, anthropic, azure_openai]
+    default: openai:gpt-5.5-thinking
+    requires_tools: true
+  code_generation:
+    allowed_providers: [openai, anthropic]
+    default: openai:codex
+  repo_refactor:
+    allowed_providers: [openai, anthropic, github_copilot]
+    default: anthropic:claude-code
+  summarization:
+    allowed_providers: [openai, anthropic, local]
+    default: openai:gpt-5.5-mini
+  confidential_data:
+    allowed_providers: [azure_openai, private]
+    default: azure_openai:approved-private-deployment
+routing_rules:
+  - when: data_classification in [restricted, regulated]
+    require_provider_allowlist: true
+    require_no_training_retention: true
+    require_region_match: true
+  - when: action_class in [controlled_side_effect, blocked_autonomous_action]
+    require_human_approval: true
+    block_autonomous_tool_calls: true
+logging:
+  record_model: true
+  record_prompt_version: true
+  record_tool_calls: true
+  record_token_usage: true
+  mask_sensitive_values: true

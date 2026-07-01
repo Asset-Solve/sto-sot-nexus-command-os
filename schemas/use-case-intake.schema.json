@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "UseCaseIntake",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "useCase",
+    "businessOutcome",
+    "personas",
+    "processScope",
+    "systemsTouched",
+    "expectedWriteBacks",
+    "riskClass",
+    "assumptions",
+    "openQuestions"
+  ],
+  "properties": {
+    "useCase": { "type": "string" },
+    "businessOutcome": { "type": "string" },
+    "personas": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "processScope": { "type": "string" },
+    "systemsTouched": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "expectedWriteBacks": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "riskClass": {
+      "type": "string",
+      "enum": ["informational", "advisory", "controlled_side_effect", "blocked_autonomous_action"]
+    },
+    "assumptions": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "openQuestions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["question", "blocking"],
+        "properties": {
+          "question": { "type": "string" },
+          "blocking": { "type": "boolean" }
+        }
+      }
+    }
+  }
+}

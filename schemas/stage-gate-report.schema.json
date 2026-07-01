@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "StageGateReport",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "stage",
+    "stageName",
+    "decision",
+    "confidence",
+    "scores",
+    "artifacts",
+    "keyDecisions",
+    "risks",
+    "openQuestions",
+    "recommendation"
+  ],
+  "properties": {
+    "stage": { "type": "integer", "minimum": 0, "maximum": 20 },
+    "stageName": { "type": "string" },
+    "decision": { "type": "string", "enum": ["proceed", "revise", "stop"] },
+    "confidence": { "type": "string", "enum": ["low", "medium", "high"] },
+    "scores": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["criterion", "score", "evidence", "gap"],
+        "properties": {
+          "criterion": { "type": "string" },
+          "score": { "type": "integer", "minimum": 0, "maximum": 3 },
+          "evidence": { "type": "string" },
+          "gap": { "type": "string" }
+        }
+      }
+    },
+    "artifacts": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "keyDecisions": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "risks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["risk", "impact", "mitigation", "owner"],
+        "properties": {
+          "risk": { "type": "string" },
+          "impact": { "type": "string" },
+          "mitigation": { "type": "string" },
+          "owner": { "type": "string" }
+        }
+      }
+    },
+    "openQuestions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["question", "owner", "blocking"],
+        "properties": {
+          "question": { "type": "string" },
+          "owner": { "type": "string" },
+          "blocking": { "type": "boolean" }
+        }
+      }
+    },
+    "recommendation": { "type": "string" }
+  }
+}

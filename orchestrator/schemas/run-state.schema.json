@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "RunState",
+  "description": "Persisted state for one Enterprise AI ERP build run (orchestrator/state/run-state.json).",
+  "type": "object",
+  "required": ["run_id", "stages"],
+  "properties": {
+    "run_id": { "type": ["string", "null"] },
+    "use_case": { "type": ["string", "null"] },
+    "mode": { "type": ["string", "null"], "enum": ["guided_gates", "full_auto_draft", "repair", "implementation_only", null] },
+    "driver": { "type": ["string", "null"], "enum": ["auto", "codex", "claude", "dryrun", null] },
+    "stack": { "type": ["string", "null"] },
+    "created_at": { "type": ["string", "null"] },
+    "stages": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": ["pending", "generated", "gate_passed", "gate_failed",
+                     "awaiting_approval", "revise_requested", "approved", "blocked"]
+          },
+          "gate_passed": { "type": "boolean" },
+          "score": { "type": "number" },
+          "driver": { "type": "string" },
+          "report": { "type": "string" },
+          "ran_at": { "type": "string" },
+          "approved_at": { "type": "string" },
+          "approval": { "type": "string", "enum": ["human", "auto"] }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,1 @@
+"""Programmatic stage-gate validation."""

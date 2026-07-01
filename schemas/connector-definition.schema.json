@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ConnectorDefinition",
+  "type": "object",
+  "required": [
+    "connectorId",
+    "displayName",
+    "systemType",
+    "supportedBusinessObjects",
+    "supportedActions",
+    "supportedModes",
+    "currentMode"
+  ],
+  "properties": {
+    "connectorId": { "type": "string" },
+    "displayName": { "type": "string" },
+    "systemType": { "type": "string" },
+    "nativeIntegrationMethod": { "type": "string" },
+    "supportedBusinessObjects": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "supportedActions": { "type": "object" },
+    "supportedModes": {
+      "type": "array",
+      "items": { "enum": ["SIMULATOR", "SANDBOX", "LIVE"] }
+    },
+    "currentMode": { "enum": ["SIMULATOR", "SANDBOX", "LIVE"] },
+    "authType": { "type": "string" },
+    "destinationName": { "type": "string" },
+    "cloudConnectorRequired": { "type": "boolean" },
+    "requiresPayloadPreview": { "type": "boolean" },
+    "requiresOutboxForWrites": { "type": "boolean" },
+    "mappingProfile": { "type": "string" },
+    "retryPolicy": { "type": "object" },
+    "deadLetterPolicy": { "type": "object" },
+    "owner": { "type": "string" },
+    "healthStatus": { "type": "string" },
+    "lastTestAt": { "type": "string" },
+    "lastSyncAt": { "type": "string" }
+  }
+}
