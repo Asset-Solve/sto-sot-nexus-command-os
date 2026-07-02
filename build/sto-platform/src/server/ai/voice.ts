@@ -32,6 +32,7 @@ export interface VoiceResult {
 }
 
 const ROUTES: { route: string; words: string[] }[] = [
+  { route: '/my-work', words: ['my work', 'work queue', 'my queue', 'my tasks', 'my approvals', 'what do i need to do', 'to-do'] },
   { route: '/command-center', words: ['command center', 'command centre', 'home', 'overview', 'cockpit'] },
   { route: '/portfolio', words: ['portfolio', 'event strategy', 'premise'] },
   { route: '/scope', words: ['scope'] },

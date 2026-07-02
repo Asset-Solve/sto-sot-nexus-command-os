@@ -1,6 +1,6 @@
 # Local Validation and Remediation Report — STO/SOT Platform v1
 
-Date: 2026-07-01 · Updated: 2026-07-01 local remediation pass · Scope: `build/sto-platform` (new application) + documentation deliverables.
+Date: 2026-07-01 · Updated: 2026-07-02 process-first remediation pass · Scope: `build/sto-platform` (new application) + documentation deliverables.
 
 ## Gap matrix vs KICKOFF_PROMPT (Stage 03 audit)
 
@@ -75,3 +75,37 @@ Remediations applied:
 ## Release decision
 
 SIMULATOR-mode release: **approved for demo/UAT**. Local Docker sandbox infrastructure is running and health-validated for simulator integration testing. SANDBOX/LIVE promotion to client systems remains blocked pending §24.13 tenant metadata, BTP destination values, security certificates, and connector certification evidence.
+
+---
+
+## v1.1 — Transactional / process-first enhancement (2026-07-02)
+
+**Critical flaw addressed:** screens read as dashboards — actions sat in a detached toolbar, and users could not see where objects sat in the turnaround process or what they were supposed to do next.
+
+**Approach:** derived a machine-readable process backbone from KICKOFF §6 (21 steps → 15 operating stages) and an object-state → action matrix, then drove the entire UX from it. Design record: `docs/domain/STO_PROCESS_ACTIVITY_MAP.md`; implementation: `src/server/domain/process.ts`.
+
+Delivered:
+
+| Change | Where |
+| --- | --- |
+| Process backbone: 15 stages (route, personas, objects, exit criteria) + object-state → action matrix with field prefill + persona work-queue engine | `src/server/domain/process.ts`, `/api/process`, `/api/my-work` |
+| **My Work** workbench: approvals waiting on me (SoD-filtered), process actions in my court (deep-link to prefilled governed drafts), AI reviews for my role; inline approve/reject | `src/app/my-work/page.tsx`, nav + voice ("my work") |
+| Lifecycle ribbon on every screen: event position per stage + live open-item counts, click-through to owning workbench | `src/components/ProcessRibbon.tsx` |
+| State-aware row actions: each list row shows only the governed actions valid for that object's current lifecycle state and the user's role, opening pre-filled drawers ("Act now" column) | `src/components/Workbench.tsx` |
+| "What happens next" panel per selected object, including actions gated to other roles | `src/components/Workbench.tsx` |
+| New advisory action `constraint.close`; role-disabled toolbar buttons with required-role tooltips | `src/server/domain/registry.ts`, Workbench |
+| Process regression tests: stage coverage/status, matrix↔catalog integrity, prefill correctness, role-filtered triggers, SoD-filtered approval routing, AI-review routing | `tests/process.test.ts` |
+
+**Validation executed on 2026-07-02:**
+
+| Check | Result |
+| --- | --- |
+| `npm audit --audit-level=moderate` | ✅ 0 vulnerabilities |
+| `npm run validate` | ✅ `next typegen && tsc --noEmit`, Vitest, and `next build` passed |
+| Vitest regression | ✅ 2 files, 35/35 tests passed, including process-stage coverage and MAT-4714 prefill correctness |
+| Production build | ✅ Next.js 16.2.10 build passed; `/my-work`, `/api/my-work`, `/api/process`, `/integration-hub` included |
+| Link smoke | ✅ `/command-center`, `/integration-hub` (redirects to `/connectors`), `/api/bootstrap`, `/my-work`, `/api/process` returned 200 |
+| Browser smoke | ✅ Command Center, Integration Hub alias, My Work, and the MAT-4714 draft opened with no captured console errors |
+| Governed write smoke | ✅ Gus Weber (`u-matl`) submitted MAT-4714 reservation; Kate Brody (`u-super`) approved; simulator returned SAP reservation `0002100001`; transaction reconciled `MATCHED` |
+
+**Additional remediation found during validation:** the process action prefilled material, quantity, plant, storage location, need-by date and work package, but the governed SAP reservation also requires receiver order. `MaterialDemand` seed data now carries `orderId`, the object-state matrix maps `orderId` into `material.reserve`, and `tests/process.test.ts` asserts MD-002 prefill includes `ORD-4000101`.

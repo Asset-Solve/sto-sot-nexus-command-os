@@ -308,6 +308,21 @@ export const ACTIONS: ActionDefinition[] = [
     }
   },
 
+  {
+    id: 'constraint.close',
+    label: 'Close Constraint',
+    description: 'Close a constraint with resolution evidence.',
+    screen: '/schedule', businessCapability: 'Schedule Management', actionClass: 'ADVISORY', riskClass: 'MEDIUM',
+    allowedRoles: ['scheduler_project_controls', 'sto_manager', 'material_planner', 'maintenance_supervisor'], sod: false,
+    targetObjectType: 'Constraint', targetSystem: 'STO_PLATFORM',
+    fields: [
+      { name: 'sourceObjectId', label: 'Constraint ID', type: 'text', required: true },
+      { name: 'resolution', label: 'Resolution evidence', type: 'textarea', required: true }
+    ],
+    validate: (p) => req(p, ['sourceObjectId', 'resolution']),
+    apply: (p, _t, ctx) => setState(ctx.tenantId, p['sourceObjectId'] as string, 'closed', ctx, { resolution: p['resolution'] })
+  },
+
   // ======================= MATERIALS =======================
   {
     id: 'material.reserve',

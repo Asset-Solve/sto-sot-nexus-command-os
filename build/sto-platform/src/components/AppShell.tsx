@@ -11,6 +11,7 @@ const NAV: { group: string; items: { route: string; label: string }[] }[] = [
   {
     group: 'Operate',
     items: [
+      { route: '/my-work', label: 'My Work' },
       { route: '/command-center', label: 'Command Center' },
       { route: '/field', label: 'Field Execution' },
       { route: '/permits', label: 'Permits & WCM' },

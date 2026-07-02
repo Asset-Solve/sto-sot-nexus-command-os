@@ -17,6 +17,7 @@ Requires Node 20.9+ (Node 22/24 recommended for the validated runtime). Voice co
 
 ## What this is
 
+- **Process-first execution (v1.1)**: a machine-readable STO process backbone (`src/server/domain/process.ts`) drives the whole UX — a 15-stage lifecycle ribbon on every screen with live open-item counts, **state-aware action triggers on every row** (only the governed actions valid for that object's current lifecycle state and your role, pre-filled from the object), a "what happens next" panel per selection, and **My Work** (`/my-work`): the persona queue of approvals waiting on you (SoD-filtered), process actions in your court, and AI review packages addressed to your role. See `docs/domain/STO_PROCESS_ACTIVITY_MAP.md`.
 - **20+ transactional workbenches** (portfolio, scope, work packages, schedule, materials, permits/WCM, area risk, contractors, field execution, time/labor/CATS/payroll, QA/turnover, startup/PSSR/RTS, cost, lessons, data foundation, integration hub, resilience ops, AI workbench, admin) — every screen is a contract-driven object queue with governed actions, not a dashboard.
 - **Governed transaction backbone**: every controlled action produces a canonical transaction envelope → validation → posting-path decision → four-eyes approval (SoD enforced server-side) → transactional outbox → object-specific connector → read-back → reconciliation → immutable audit. Posted records reverse via linked transactions, never in-place edits.
 - **Object-specific SAP connectors** (never one generic adapter): `API_MAINTNOTIFICATION`, `API_MAINTENANCEORDER_0002`, `API_MAINTORDERCONFIRMATION`, `API_RESERVATION_DOCUMENT_SRV`, `API_PURCHASEREQUISITION_2`, `API_MATERIAL_DOCUMENT_SRV`, `API_SERVICE_ENTRY_SHEET_SRV`, `API_MANAGE_WORKFORCE_TIMESHEET` (SAP_COM_0027), Journal Entry, DMS, MDG, APM, BDC/Datasphere (read-only) — plus P6, ePTW, PI historian, RTLS, Fieldglass, payroll gateways, PowerPlan, ServiceNow.
@@ -31,7 +32,8 @@ Every connector implements the same contract in `SIMULATOR | SEED_DATA | SANDBOX
 
 ## Demo script (happy path)
 
-1. **Command Center** — KPIs drill to records; note pending approvals and integration health.
+0. **My Work** — switch personas in the top bar (try Gus Weber → Maria Diaz → Sam Okafor) and watch each role's queue change: approvals, state-driven actions with prefilled drafts, AI reviews. Say/type: **"my work"**.
+1. **Command Center** — lifecycle ribbon shows the event at Daily Execution with open-item counts per stage; KPIs drill to records; approvals queue inline.
 2. Say/type: **"show material shortages"** → Materials opens with MAT-4714 shortage.
 3. Say/type: **"reserve 6 sets of MAT-4714"** → governed draft opens with validation, posting path, SAP payload preview (`API_RESERVATION_DOCUMENT_SRV`).
 4. Complete fields, submit → transaction goes `pending_approval` (you cannot approve your own submission).
@@ -71,4 +73,6 @@ Validated locally on Node 24.18.0 / npm 11.16.0:
 | Lookup service (all dropdowns) | `src/server/core/lookup.ts` |
 | AI router / agents / voice grammar | `src/server/ai/` |
 | Screen contracts | `src/lib/screens.ts` |
+| Process map / state-actions / work queue | `src/server/domain/process.ts` |
 | Governance test suite | `tests/governance.test.ts` |
+| Process/transactional-UX tests | `tests/process.test.ts` |

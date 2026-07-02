@@ -292,11 +292,11 @@ export function ensureSeeded(): Db {
 
   // ---------------- materials ----------------
   const demands = [
-    { id: 'MD-001', materialId: 'MAT-4711', wpId: 'WP-1001', qty: 24, state: 'issued', needBy: '2026-06-25' },
-    { id: 'MD-002', materialId: 'MAT-4714', wpId: 'WP-1001', qty: 6, state: 'shortage', needBy: '2026-07-03' },
-    { id: 'MD-003', materialId: 'MAT-4712', wpId: 'WP-1002', qty: 1, state: 'reserved', needBy: '2026-07-01', reservation: '0002100244' },
-    { id: 'MD-004', materialId: 'MAT-4713', wpId: 'WP-1003', qty: 80, state: 'requested', needBy: '2026-06-28' },
-    { id: 'MD-005', materialId: 'MAT-4715', wpId: 'WP-1003', qty: 1, state: 'draft', needBy: '2026-07-05' }
+    { id: 'MD-001', materialId: 'MAT-4711', wpId: 'WP-1001', orderId: 'ORD-4000101', qty: 24, state: 'issued', needBy: '2026-06-25' },
+    { id: 'MD-002', materialId: 'MAT-4714', wpId: 'WP-1001', orderId: 'ORD-4000101', qty: 6, state: 'shortage', needBy: '2026-07-03' },
+    { id: 'MD-003', materialId: 'MAT-4712', wpId: 'WP-1002', orderId: 'ORD-4000102', qty: 1, state: 'reserved', needBy: '2026-07-01', reservation: '0002100244' },
+    { id: 'MD-004', materialId: 'MAT-4713', wpId: 'WP-1003', orderId: 'ORD-4000103', qty: 80, state: 'requested', needBy: '2026-06-28' },
+    { id: 'MD-005', materialId: 'MAT-4715', wpId: 'WP-1003', orderId: 'ORD-4000103', qty: 1, state: 'draft', needBy: '2026-07-05' }
   ];
   for (const d of demands) bo(db, T1, 'MaterialDemand', d.id, 'STO_PLATFORM', 'MaterialDemand', d.id, d.state, 'u-matl', {
     ...d, plantId: 'P100', eventId: 'EV-1001', storageLocation: 'SL01'

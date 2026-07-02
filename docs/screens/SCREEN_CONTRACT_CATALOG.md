@@ -2,6 +2,8 @@
 
 Machine-readable source: `build/sto-platform/src/lib/screens.ts` (object queues + columns) and `src/server/domain/registry.ts` (actions, validations, payload mappings, approver routing, tests via `tests/governance.test.ts`). Custom screens: command center, integration hub, resilience ops, AI workbench.
 
+**v1.1 process-first additions** (see `docs/domain/STO_PROCESS_ACTIVITY_MAP.md`): every workbench now renders the 15-stage lifecycle ribbon with live open-item counts; every row exposes the governed actions valid for that object's current lifecycle state and the user's role (object-state → action matrix with prefill); the detail pane shows "what happens next" including actions gated to other roles; and `/my-work` is the persona work queue (approvals waiting on me + process actions in my court + AI reviews for my role).
+
 Common contract on every workbench (enforced by the Workbench framework — impossible to ship a screen without it):
 
 - data objects listed via `/api/objects/*` with tenant + ABAC scope filtering; loading / empty / error / permission states rendered;
@@ -12,7 +14,8 @@ Common contract on every workbench (enforced by the Workbench framework — impo
 
 | Route | Purpose (1-line) | Queues | Governed actions |
 | --- | --- | --- | --- |
-| /command-center | Operating picture, drillable KPIs, four-eyes approval queue, integration health, voice guide | KPI rollup + approvals | approve/reject via engine |
+| /my-work | Persona day-in-the-life queue: approvals (SoD-filtered), state-driven process actions, AI reviews for my role | live queue from process map | inline approve/reject; deep-link prefilled drafts |
+| /command-center | Operating picture, lifecycle ribbon, drillable KPIs, four-eyes approval queue, integration health, voice guide | KPI rollup + approvals | approve/reject via engine |
 | /portfolio | Event master, premise, gates, budget envelopes | events, gates, budgets | event.create, premise.approve |
 | /scope | Intake → dedupe → decide → freeze; SAP notification create/associate | candidates, emergent, SAP notifs, APM recs | scope.submit/decide/freeze, scope.create_notification |
 | /work-packages | WP360 assembly + readiness-gated release | WPs, SAP orders, operations | wp.validate, wp.release |

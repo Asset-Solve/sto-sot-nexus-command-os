@@ -3,7 +3,8 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { get, post } from '@/lib/api';
-import { Chip, Panel, Toast, stateTone } from '@/components/ui';
+import { Chip, Panel, Toast } from '@/components/ui';
+import ProcessRibbon from '@/components/ProcessRibbon';
 
 export default function CommandCenter() {
   const [data, setData] = useState<any>(null);
@@ -27,8 +28,9 @@ export default function CommandCenter() {
     <div>
       <h1 className="page">Event Command Center</h1>
       <div className="page-purpose">
-        {ev?.name} — {ev?.plantId}/{ev?.unitId} · Day {ev?.dayOf} of {ev?.totalDays} · Phase <Chip tone="info">{ev?.phase}</Chip> · Every KPI drills to its transactional records.
+        {ev?.name} — {ev?.plantId}/{ev?.unitId} · Day {ev?.dayOf} of {ev?.totalDays} · Phase <Chip tone="info">{ev?.phase}</Chip> · Every KPI drills to its transactional records. Your personal queue: <a href="/my-work"><b>My Work →</b></a>
       </div>
+      <ProcessRibbon />
 
       <div className="kpi-grid">
         {data.kpis.map((k: any) => (
