@@ -21,6 +21,28 @@ Date: 2026-07-02
 | Vagrant VM startup | Not run | Optional VM wrapper was not started because Docker Desktop local sandbox validation passed through the requested command sequence |
 | Shell script syntax | Not run | WSL is installed, but the sandbox was validated through the PowerShell path |
 
+## 2026-07-02 Verification Rerun
+
+The sandbox was revalidated from this repo after the STO/SOT application remediation:
+
+```powershell
+infra/sandbox/scripts/validate-prereqs.ps1
+infra/sandbox/scripts/start-sandbox.ps1
+infra/sandbox/scripts/validate-sandbox.ps1
+```
+
+Evidence from the rerun:
+
+- Prerequisites passed: `winget`, WSL, Docker `29.6.1`, Docker Compose `v5.1.4`, Vagrant `2.4.9`.
+- Docker Compose stack started all sandbox services.
+- SAP S/4 simulator passed at `http://localhost:18081/sap/health`.
+- Oracle Fusion simulator passed at `http://localhost:18082/oracle/health`.
+- SAP Integration Suite simulator passed at `http://localhost:18083/sap-is/health`.
+- Oracle Integration Cloud simulator passed at `http://localhost:18083/oic/health`.
+- Maximo, ServiceNow, PI Web API, and OPC UA bridge simulators passed at `http://localhost:18084`.
+- Keycloak realm passed at `http://localhost:18080/realms/erp-sandbox/.well-known/openid-configuration` after realm import completed.
+- Postgres seed query returned 8 integration test scenarios.
+
 ## Commands Completed
 
 ```powershell

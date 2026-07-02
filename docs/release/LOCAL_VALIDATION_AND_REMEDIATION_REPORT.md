@@ -51,6 +51,9 @@ Runtime and validation were executed locally after remediation:
 | `npm run validate` | ✅ passed end to end after the `/integration-hub` alias, 38 static pages + API routes |
 | Browser smoke | ✅ `/command-center` and `/integration-hub` rendered with no captured console errors |
 | HTTP integration smoke | ✅ `material.reserve` preview used `API_RESERVATION_DOCUMENT_SRV`; material planner submit → supervisor approval → simulated SAP doc `0002100001` → `MATCHED` reconciliation |
+| Sandbox prerequisite validation | ✅ `winget`, WSL, Docker, Docker Compose, and Vagrant passed |
+| Docker sandbox startup | ✅ `infra/sandbox/scripts/start-sandbox.ps1` started the sandbox stack |
+| Docker sandbox health validation | ✅ SAP S/4, Oracle Fusion, SAP Integration Suite, OIC, Maximo, ServiceNow, PI Web API, OPC UA, Keycloak, and Postgres seed-count checks passed |
 
 Remediations applied:
 
@@ -71,4 +74,4 @@ Remediations applied:
 
 ## Release decision
 
-SIMULATOR-mode release: **approved for demo/UAT** once `npm run validate` passes locally. SANDBOX promotion: blocked pending §24.13 tenant metadata and connector certification evidence.
+SIMULATOR-mode release: **approved for demo/UAT**. Local Docker sandbox infrastructure is running and health-validated for simulator integration testing. SANDBOX/LIVE promotion to client systems remains blocked pending §24.13 tenant metadata, BTP destination values, security certificates, and connector certification evidence.
