@@ -1,0 +1,17 @@
+{
+  "request": {
+    "method": "POST",
+    "urlPathPattern": "/events/sap/s4/beh/.*"
+  },
+  "response": {
+    "status": 202,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "jsonBody": {
+      "accepted": true,
+      "eventBroker": "SAP_AEM_SANDBOX",
+      "correlationId": "{{request.headers.X-Correlation-Id}}"
+    }
+  }
+}

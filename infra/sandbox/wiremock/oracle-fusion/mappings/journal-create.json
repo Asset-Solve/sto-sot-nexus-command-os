@@ -1,0 +1,18 @@
+{
+  "request": {
+    "method": "POST",
+    "urlPath": "/fscmRestApi/resources/latest/journals"
+  },
+  "response": {
+    "status": 201,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "jsonBody": {
+      "JournalBatch": "ORA-JRN-SBX-1001",
+      "AccountingDate": "2026-07-02",
+      "Status": "UNPOSTED",
+      "SandboxOutcome": "created"
+    }
+  }
+}

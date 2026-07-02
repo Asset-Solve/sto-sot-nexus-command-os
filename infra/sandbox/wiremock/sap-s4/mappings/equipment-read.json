@@ -1,0 +1,23 @@
+{
+  "request": {
+    "method": "GET",
+    "urlPathPattern": "/sap/opu/odata/sap/API_EQUIPMENT/Equipment.*"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json",
+      "sap-message": "{\"severity\":\"success\",\"message\":\"sandbox equipment read\"}"
+    },
+    "jsonBody": {
+      "d": {
+        "Equipment": "EQ-1001",
+        "EquipmentName": "Sandbox Pump A",
+        "FunctionalLocation": "PLANT-01-AREA-02",
+        "MaintenancePlant": "1000",
+        "SystemStatus": "AVLB",
+        "SourceSystem": "SAP_S4_SANDBOX"
+      }
+    }
+  }
+}

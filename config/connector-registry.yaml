@@ -1,19 +1,26 @@
 # Connector registry - each entry conforms to schemas/connector-definition.schema.json
 # (Stage 09 gate validates every entry). Modes: SIMULATOR | SANDBOX | LIVE.
 # currentMode defaults to SIMULATOR so a fresh build never writes to a live ERP.
+# ERP posture: SAP S/4HANA primary (erpRole: primary), Oracle Fusion backup
+# (erpRole: backup). Routing/failover rules:
+# docs/integration/DUAL_ERP_ROUTING_AND_FAILOVER_POLICY.md
 connectors:
   sap_s4hana:
     connectorId: sap_s4hana
-    displayName: SAP S/4HANA
+    displayName: SAP S/4HANA (Cloud Public Edition default; Private Edition deltas per ADR)
     systemType: SAP
+    erpRole: primary
     nativeIntegrationMethod: released_odata_api_via_btp_destination_and_cloud_connector
-    supportedBusinessObjects: [Equipment, FunctionalLocation, MaintenanceNotification, MaintenanceOrder, OperationConfirmation, CATS, PurchaseRequisition, PurchaseOrder, GoodsMovement, ServiceEntrySheet, BusinessPartner, Material, WBS, CostCenter]
-    supportedActions: { read: true, create: true, update: conditional, post: true, reverse: true }
+    cleanCoreLevel: A_released_apis_only # level C/D usage requires ADR
+    apiCatalogRefs: ["https://hub.sap.com"] # verify release state per edition/release
+    supportedBusinessObjects: [Equipment, FunctionalLocation, MaintenanceNotification, MaintenanceOrder, OperationConfirmation, WorkforceTimesheet, PurchaseRequisition, PurchaseOrder, GoodsMovement, ServiceEntrySheet, JournalEntry, BusinessPartner, Product, WBS, CostCenter, WarehouseTask]
+    supportedActions: { read: true, create: true, update: conditional, post: true, reverse: true, statusReadBack: true, attachments: true, events: true }
+    eventTopics: ["sap.s4.beh.*"] # CloudEvents notification pattern; read back full state via OData
     supportedModes: [SIMULATOR, SANDBOX, LIVE]
     currentMode: SIMULATOR
     authType: oauth2_saml_bearer
     destinationName: S4H_DEST
-    cloudConnectorRequired: true
+    cloudConnectorRequired: true # Private Edition/on-prem only; false for Public Edition
     requiresPayloadPreview: true
     requiresOutboxForWrites: true
     retryPolicy: { strategy: exponential_backoff, maxRetries: 5 }
@@ -32,25 +39,42 @@ connectors:
     authType: oauth2_client_credentials
     owner: integration-platform-team
     healthStatus: unknown
-  sap_event_mesh:
-    connectorId: sap_event_mesh
-    displayName: SAP Event Mesh
+  sap_advanced_event_mesh:
+    connectorId: sap_advanced_event_mesh
+    displayName: SAP Integration Suite, advanced event mesh (AEM)
     systemType: SAP_EVENTING
-    nativeIntegrationMethod: event_mesh_pub_sub
+    nativeIntegrationMethod: advanced_event_mesh_pub_sub_cloudevents
     supportedBusinessObjects: []
-    supportedActions: { publish: true, subscribe: true, status_events: true }
+    supportedActions: { publish: true, subscribe: true, status_events: true, dynamic_topics: true }
+    eventTopics: ["default/sap.s4/*/ce/sap/s4/beh/#"]
     supportedModes: [SANDBOX, LIVE]
     currentMode: SANDBOX
     authType: oauth2_client_credentials
     owner: integration-platform-team
     healthStatus: unknown
+    notes: successor of SAP Event Mesh default plan (migration path SAP-supported)
+  sap_edge_integration_cell:
+    connectorId: sap_edge_integration_cell
+    displayName: SAP Integration Suite - Edge Integration Cell
+    systemType: SAP_MIDDLEWARE
+    nativeIntegrationMethod: edge_integration_cell_hybrid_runtime
+    supportedBusinessObjects: []
+    supportedActions: { orchestrate: true, api_management: true, in_landscape_processing: true }
+    supportedModes: [SANDBOX, LIVE]
+    currentMode: SANDBOX
+    authType: oauth2_client_credentials
+    owner: integration-platform-team
+    healthStatus: unknown
+    notes: optional hybrid runtime for data-residency / in-landscape API and iFlow execution
   oracle_fusion:
     connectorId: oracle_fusion
-    displayName: Oracle Fusion Cloud Applications
+    displayName: Oracle Fusion Cloud Applications (backup ERP)
     systemType: ORACLE
-    nativeIntegrationMethod: oracle_fusion_rest_api
+    erpRole: backup
+    nativeIntegrationMethod: oracle_fusion_rest_api # /fscmRestApi/resources/latest; FBDI for volume
+    apiCatalogRefs: ["https://docs.oracle.com/en/cloud/saas"]
     supportedBusinessObjects: [Financials, Procurement, SCM, HCM, Projects, Maintenance]
-    supportedActions: { read: true, create: true, update: conditional, post: true }
+    supportedActions: { read: true, create: true, update: conditional, post: true, statusReadBack: true, batch_fbdi: true, events: true }
     supportedModes: [SIMULATOR, SANDBOX, LIVE]
     currentMode: SIMULATOR
     authType: oauth2_least_privilege
@@ -58,6 +82,7 @@ connectors:
     requiresOutboxForWrites: true
     retryPolicy: { strategy: exponential_backoff, maxRetries: 5 }
     deadLetterPolicy: { enabled: true, store: parking_table }
+    quarterlyUpdateRegression: required # re-validate mappings/auth every 26A-26D update
     owner: integration-platform-team
     healthStatus: unknown
   oracle_integration_cloud:
@@ -127,3 +152,12 @@ fallback_policy:
   generic_rest: allowed_only_if_native_unavailable_and_approved
   generic_sftp: allowed_for_batch_import_export_only
   direct_database_write: prohibited_for_systems_of_record
+
+# Dual-ERP routing (not a connector definition; enforced by posting-path engine).
+erp_routing_policy:
+  primary: sap_s4hana
+  backup: oracle_fusion
+  routing_key: tenant_object_company # resolved via Source-of-Record Register
+  dual_post: prohibited
+  automatic_write_failover: prohibited # SoR change requires ADR + approval + reconciliation
+  read_failover: replicated_read_model_with_staleness_badge

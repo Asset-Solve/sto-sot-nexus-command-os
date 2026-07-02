@@ -1,0 +1,22 @@
+{
+  "request": {
+    "method": "POST",
+    "urlPathPattern": "/sap/opu/odata/sap/API_MAINTENANCEORDER/.*"
+  },
+  "response": {
+    "status": 201,
+    "headers": {
+      "Content-Type": "application/json",
+      "Location": "/sap/opu/odata/sap/API_MAINTENANCEORDER/MaintenanceOrder('MO-SBX-1001')"
+    },
+    "jsonBody": {
+      "d": {
+        "MaintenanceOrder": "MO-SBX-1001",
+        "MaintenanceOrderType": "PM01",
+        "Equipment": "EQ-1001",
+        "SystemStatus": "CRTD",
+        "SandboxOutcome": "created"
+      }
+    }
+  }
+}

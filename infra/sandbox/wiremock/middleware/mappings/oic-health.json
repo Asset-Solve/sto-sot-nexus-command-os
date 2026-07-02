@@ -1,0 +1,17 @@
+{
+  "request": {
+    "method": "GET",
+    "urlPath": "/oic/health"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "jsonBody": {
+      "status": "UP",
+      "system": "ORACLE_INTEGRATION_CLOUD_SANDBOX",
+      "capabilities": ["adapter", "integration_flow", "fault_handler", "parking_table"]
+    }
+  }
+}

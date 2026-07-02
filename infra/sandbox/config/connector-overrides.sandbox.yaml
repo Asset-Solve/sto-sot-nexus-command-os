@@ -1,0 +1,66 @@
+# Local endpoint overrides for the sandbox profile. These values are consumed by
+# generated applications and connector tests; the canonical connector registry
+# remains the source for capabilities and live ownership.
+sandboxProfile: local-vm
+defaultMode: SANDBOX
+tenantId: tenant_demo
+connectors:
+  sap_s4hana:
+    currentMode: SANDBOX
+    baseUrl: http://sap-s4-simulator:8080
+    hostUrl: http://localhost:18081
+    authProfile: keycloak-client-credentials
+    sourceOfRecordRole: primary
+    blocksLiveWrite: true
+  sap_integration_suite:
+    currentMode: SANDBOX
+    baseUrl: http://middleware-simulator:8080
+    hostUrl: http://localhost:18083
+    authProfile: keycloak-client-credentials
+  sap_advanced_event_mesh:
+    currentMode: SANDBOX
+    baseUrl: amqp://rabbitmq:5672
+    hostUrl: amqp://localhost:5672
+    authProfile: rabbitmq-sandbox
+  oracle_fusion:
+    currentMode: SANDBOX
+    baseUrl: http://oracle-fusion-simulator:8080
+    hostUrl: http://localhost:18082
+    authProfile: keycloak-client-credentials
+    sourceOfRecordRole: backup
+    blocksLiveWrite: true
+  oracle_integration_cloud:
+    currentMode: SANDBOX
+    baseUrl: http://middleware-simulator:8080
+    hostUrl: http://localhost:18083
+    authProfile: keycloak-client-credentials
+  maximo:
+    currentMode: SANDBOX
+    baseUrl: http://non-sap-simulator:8080
+    hostUrl: http://localhost:18084
+    authProfile: api-key-sandbox
+  service_now:
+    currentMode: SANDBOX
+    baseUrl: http://non-sap-simulator:8080
+    hostUrl: http://localhost:18084
+    authProfile: keycloak-client-credentials
+  aveva_pi:
+    currentMode: SANDBOX
+    baseUrl: http://non-sap-simulator:8080
+    hostUrl: http://localhost:18084
+    authProfile: bearer-sandbox
+  opc_ua:
+    currentMode: SANDBOX
+    baseUrl: http://non-sap-simulator:8080
+    hostUrl: http://localhost:18084
+    authProfile: certificate-sandbox
+security:
+  identityProvider: http://keycloak:8080/realms/erp-sandbox
+  hostIdentityProvider: http://localhost:18080/realms/erp-sandbox
+  liveCredentialPolicy: prohibited
+  directFrontendErpCalls: prohibited
+observability:
+  otlpGrpcEndpoint: http://otel-collector:4317
+  otlpHttpEndpoint: http://otel-collector:4318
+  prometheus: http://prometheus:9090
+  grafana: http://grafana:3000

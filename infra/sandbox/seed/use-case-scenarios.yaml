@@ -1,0 +1,117 @@
+version: 1
+profile: erp-integration-sandbox
+tenantId: tenant_demo
+scenarios:
+  - id: SBX-001
+    name: Golden transaction posts through outbox and reconciles
+    useCaseFamily: cross_use_case
+    businessObject: MaintenanceOrder
+    sourceOfRecord: sap_s4hana
+    backupReadModel: oracle_fusion
+    stagesCovered: ["08", "09", "10", "11", "14", "16", "20"]
+    connectors: [sap_s4hana, sap_integration_suite, sap_advanced_event_mesh]
+    requiredControls:
+      - payload_preview
+      - approval_when_controlled
+      - outbox
+      - idempotency_key
+      - target_document_capture
+      - read_back
+      - reconciliation
+      - audit_event
+    endpoints:
+      create: /sap/opu/odata/sap/API_MAINTENANCEORDER/MaintenanceOrder
+      readBack: /sap/opu/odata/sap/API_MAINTENANCEORDER/MaintenanceOrder('MO-SBX-1001')
+
+  - id: SBX-002
+    name: Dual ERP write routing blocks automatic failover
+    useCaseFamily: routing_policy
+    businessObject: PurchaseRequisition
+    sourceOfRecord: sap_s4hana
+    backupReadModel: oracle_fusion
+    stagesCovered: ["07", "08", "10", "16"]
+    connectors: [sap_s4hana, oracle_fusion]
+    requiredControls:
+      - source_of_record_route
+      - no_dual_post
+      - no_automatic_write_failover
+      - read_staleness_badge
+
+  - id: SBX-003
+    name: Connector failure retries and parks in DLQ
+    useCaseFamily: resilience
+    businessObject: MaintenanceOrder
+    sourceOfRecord: sap_s4hana
+    stagesCovered: ["09", "10", "16", "19"]
+    connectors: [sap_s4hana, sap_advanced_event_mesh]
+    requiredControls:
+      - exponential_backoff
+      - retry_limit
+      - dead_letter_store
+      - operator_runbook
+      - replay_requires_permission
+
+  - id: SBX-004
+    name: Reconciliation mismatch opens owned case
+    useCaseFamily: reconciliation
+    businessObject: JournalEntry
+    sourceOfRecord: sap_s4hana
+    stagesCovered: ["10", "16", "19", "20"]
+    connectors: [sap_s4hana]
+    requiredControls:
+      - readback_comparison
+      - mismatch_classification
+      - owner_assignment
+      - correction_or_reversal_path
+
+  - id: SBX-005
+    name: Four-eyes policy blocks self approval
+    useCaseFamily: workflow
+    businessObject: PurchaseRequisition
+    sourceOfRecord: sap_s4hana
+    stagesCovered: ["11", "14", "16", "17"]
+    connectors: [sap_s4hana]
+    requiredControls:
+      - approver_is_not_submitter
+      - audit_decision_basis
+      - policy_denial_reason
+
+  - id: SBX-006
+    name: Tenant isolation blocks cross tenant read
+    useCaseFamily: security
+    businessObject: MaintenanceOrder
+    sourceOfRecord: sap_s4hana
+    stagesCovered: ["14", "19", "20"]
+    connectors: [sap_s4hana, keycloak]
+    requiredControls:
+      - tenant_context
+      - rbac
+      - row_level_security
+      - cross_tenant_denial_audit
+
+  - id: SBX-007
+    name: AI recommendation cannot post controlled action
+    useCaseFamily: ai_governance
+    businessObject: MaintenanceOrder
+    sourceOfRecord: sap_s4hana
+    stagesCovered: ["18", "20"]
+    connectors: [sap_s4hana]
+    requiredControls:
+      - source_citations
+      - prompt_version
+      - model_profile
+      - human_approval_required
+      - no_autonomous_controlled_write
+
+  - id: SBX-008
+    name: Historian reading maps to asset indicator without OT write
+    useCaseFamily: ot_historian
+    businessObject: HistorianReading
+    sourceOfRecord: aveva_pi
+    stagesCovered: ["08", "09", "14", "20"]
+    connectors: [aveva_pi, opc_ua, sap_s4hana]
+    requiredControls:
+      - read_only_ot_connection
+      - tag_to_asset_mapping
+      - unit_quality_validation
+      - no_ot_write_by_default

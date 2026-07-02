@@ -1,0 +1,56 @@
+{
+  "realm": "erp-sandbox",
+  "enabled": true,
+  "displayName": "Enterprise ERP Sandbox",
+  "sslRequired": "external",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "roles": {
+    "realm": [
+      { "name": "sandbox-admin", "description": "Sandbox administrator" },
+      { "name": "integration-tester", "description": "Integration validation user" },
+      { "name": "approver", "description": "Four-eyes approver" },
+      { "name": "viewer", "description": "Read-only evidence reviewer" }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "erp-sandbox-api",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "serviceAccountsEnabled": true,
+      "directAccessGrantsEnabled": true,
+      "standardFlowEnabled": true,
+      "secret": "erp-sandbox-client-secret",
+      "redirectUris": ["http://localhost:*/*"],
+      "webOrigins": ["http://localhost:*"]
+    }
+  ],
+  "users": [
+    {
+      "username": "tester",
+      "enabled": true,
+      "emailVerified": true,
+      "email": "tester@example.local",
+      "firstName": "Integration",
+      "lastName": "Tester",
+      "credentials": [
+        { "type": "password", "value": "tester", "temporary": false }
+      ],
+      "realmRoles": ["integration-tester", "viewer"]
+    },
+    {
+      "username": "approver",
+      "enabled": true,
+      "emailVerified": true,
+      "email": "approver@example.local",
+      "firstName": "Control",
+      "lastName": "Approver",
+      "credentials": [
+        { "type": "password", "value": "approver", "temporary": false }
+      ],
+      "realmRoles": ["approver", "viewer"]
+    }
+  ]
+}

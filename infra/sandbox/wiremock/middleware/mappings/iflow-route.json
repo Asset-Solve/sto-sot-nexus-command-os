@@ -1,0 +1,19 @@
+{
+  "request": {
+    "method": "POST",
+    "urlPath": "/sap-is/iflow/sandbox-route"
+  },
+  "response": {
+    "status": 202,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "jsonBody": {
+      "accepted": true,
+      "route": "sandbox-route",
+      "retryPolicy": "exponential_backoff",
+      "deadLetterStore": "outbox_dlq",
+      "correlationId": "{{request.headers.X-Correlation-Id}}"
+    }
+  }
+}

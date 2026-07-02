@@ -1,0 +1,17 @@
+{
+  "request": {
+    "method": "GET",
+    "urlPath": "/piwebapi/system"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "jsonBody": {
+      "ProductName": "AVEVA PI Web API Sandbox",
+      "ProductVersion": "sandbox",
+      "ReadOnly": true
+    }
+  }
+}

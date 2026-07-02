@@ -1,0 +1,21 @@
+{
+  "request": {
+    "method": "POST",
+    "urlPathPattern": "/sap/opu/odata/sap/API_PURCHASEREQ_PROCESS_SRV/.*"
+  },
+  "response": {
+    "status": 201,
+    "headers": {
+      "Content-Type": "application/json",
+      "Location": "/sap/opu/odata/sap/API_PURCHASEREQ_PROCESS_SRV/A_PurchaseRequisitionHeader('PR-SBX-1001')"
+    },
+    "jsonBody": {
+      "d": {
+        "PurchaseRequisition": "PR-SBX-1001",
+        "DocumentType": "NB",
+        "ReleaseStatus": "InApproval",
+        "SandboxOutcome": "queued_for_approval"
+      }
+    }
+  }
+}

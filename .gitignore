@@ -5,7 +5,9 @@ __pycache__/
 
 # Node / generated application workspace
 node_modules/
-build/
+build/*
+!build/sto-platform/
+!build/sto-platform/**
 dist/
 
 # Orchestrator runtime state
@@ -23,4 +25,3 @@ gate-report.json
 Thumbs.db
 .vscode/
 .idea/
-

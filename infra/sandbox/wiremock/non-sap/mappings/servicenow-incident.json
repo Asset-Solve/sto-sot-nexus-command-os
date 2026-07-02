@@ -1,0 +1,19 @@
+{
+  "request": {
+    "method": "POST",
+    "urlPath": "/api/now/table/incident"
+  },
+  "response": {
+    "status": 201,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "jsonBody": {
+      "result": {
+        "number": "INC-SBX-1001",
+        "state": "1",
+        "short_description": "Sandbox integration incident"
+      }
+    }
+  }
+}

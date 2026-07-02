@@ -1,0 +1,190 @@
+name: erp-integration-sandbox
+
+x-wiremock-service: &wiremock-service
+  image: wiremock/wiremock:3.9.1
+  command:
+    - "--global-response-templating"
+    - "--verbose"
+  restart: unless-stopped
+  networks:
+    - erp-sandbox
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${SANDBOX_POSTGRES_DB:-erp_sandbox}
+      POSTGRES_USER: ${SANDBOX_POSTGRES_USER:-erp_sandbox}
+      POSTGRES_PASSWORD: ${SANDBOX_POSTGRES_PASSWORD:-erp_sandbox_pw}
+    ports:
+      - "${SANDBOX_POSTGRES_PORT:-55432}:5432"
+    volumes:
+      - sandbox-postgres:/var/lib/postgresql/data
+      - ./postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - erp-sandbox
+
+  redis:
+    image: redis:7.4-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "${SANDBOX_REDIS_PORT:-56379}:6379"
+    volumes:
+      - sandbox-redis:/data
+    networks:
+      - erp-sandbox
+
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: ${SANDBOX_RABBITMQ_USER:-erp_sandbox}
+      RABBITMQ_DEFAULT_PASS: ${SANDBOX_RABBITMQ_PASSWORD:-erp_sandbox_pw}
+    ports:
+      - "${SANDBOX_RABBITMQ_AMQP_PORT:-5672}:5672"
+      - "${SANDBOX_RABBITMQ_MGMT_PORT:-15672}:15672"
+      - "${SANDBOX_RABBITMQ_METRICS_PORT:-15692}:15692"
+    volumes:
+      - sandbox-rabbitmq:/var/lib/rabbitmq
+      - ./rabbitmq/enabled_plugins:/etc/rabbitmq/enabled_plugins:ro
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - erp-sandbox
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.0.7
+    restart: unless-stopped
+    command: ["start-dev", "--http-port=8080", "--import-realm"]
+    environment:
+      KEYCLOAK_ADMIN: ${SANDBOX_KEYCLOAK_ADMIN:-admin}
+      KEYCLOAK_ADMIN_PASSWORD: ${SANDBOX_KEYCLOAK_ADMIN_PASSWORD:-admin}
+      KC_HEALTH_ENABLED: "true"
+      KC_METRICS_ENABLED: "true"
+    ports:
+      - "${SANDBOX_KEYCLOAK_PORT:-18080}:8080"
+    volumes:
+      - ./keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json:ro
+    networks:
+      - erp-sandbox
+
+  sap-s4-simulator:
+    <<: *wiremock-service
+    ports:
+      - "${SANDBOX_SAP_S4_PORT:-18081}:8080"
+    volumes:
+      - ./wiremock/sap-s4/mappings:/home/wiremock/mappings:ro
+      - ./wiremock/__files:/home/wiremock/__files:ro
+
+  oracle-fusion-simulator:
+    <<: *wiremock-service
+    ports:
+      - "${SANDBOX_ORACLE_FUSION_PORT:-18082}:8080"
+    volumes:
+      - ./wiremock/oracle-fusion/mappings:/home/wiremock/mappings:ro
+      - ./wiremock/__files:/home/wiremock/__files:ro
+
+  middleware-simulator:
+    <<: *wiremock-service
+    ports:
+      - "${SANDBOX_MIDDLEWARE_PORT:-18083}:8080"
+    volumes:
+      - ./wiremock/middleware/mappings:/home/wiremock/mappings:ro
+      - ./wiremock/__files:/home/wiremock/__files:ro
+
+  non-sap-simulator:
+    <<: *wiremock-service
+    ports:
+      - "${SANDBOX_NON_SAP_PORT:-18084}:8080"
+    volumes:
+      - ./wiremock/non-sap/mappings:/home/wiremock/mappings:ro
+      - ./wiremock/__files:/home/wiremock/__files:ro
+
+  minio:
+    image: quay.io/minio/minio:latest
+    restart: unless-stopped
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: ${SANDBOX_MINIO_ROOT_USER:-erp_sandbox}
+      MINIO_ROOT_PASSWORD: ${SANDBOX_MINIO_ROOT_PASSWORD:-erp_sandbox_pw}
+    ports:
+      - "${SANDBOX_MINIO_API_PORT:-19000}:9000"
+      - "${SANDBOX_MINIO_CONSOLE_PORT:-19001}:9001"
+    volumes:
+      - sandbox-minio:/data
+    networks:
+      - erp-sandbox
+
+  mailpit:
+    image: axllent/mailpit:v1.21
+    restart: unless-stopped
+    ports:
+      - "${SANDBOX_MAILPIT_SMTP_PORT:-11025}:1025"
+      - "${SANDBOX_MAILPIT_UI_PORT:-18025}:8025"
+    networks:
+      - erp-sandbox
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.112.0
+    restart: unless-stopped
+    command: ["--config=/etc/otelcol-contrib/config.yaml"]
+    ports:
+      - "${SANDBOX_OTEL_GRPC_PORT:-4317}:4317"
+      - "${SANDBOX_OTEL_HTTP_PORT:-4318}:4318"
+    volumes:
+      - ./observability/otel-collector.yaml:/etc/otelcol-contrib/config.yaml:ro
+    networks:
+      - erp-sandbox
+
+  prometheus:
+    image: prom/prometheus:v2.55.1
+    restart: unless-stopped
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+    ports:
+      - "${SANDBOX_PROMETHEUS_PORT:-19090}:9090"
+    volumes:
+      - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - sandbox-prometheus:/prometheus
+    networks:
+      - erp-sandbox
+
+  grafana:
+    image: grafana/grafana:11.3.0
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    ports:
+      - "${SANDBOX_GRAFANA_PORT:-13000}:3000"
+    volumes:
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - sandbox-grafana:/var/lib/grafana
+    depends_on:
+      - prometheus
+    networks:
+      - erp-sandbox
+
+networks:
+  erp-sandbox:
+    name: erp-sandbox
+
+volumes:
+  sandbox-postgres:
+  sandbox-redis:
+  sandbox-rabbitmq:
+  sandbox-minio:
+  sandbox-prometheus:
+  sandbox-grafana:

@@ -1,0 +1,13 @@
+{
+  "request": {
+    "method": "POST",
+    "urlPathPattern": "/sap/bc/srt/.*journalentry.*"
+  },
+  "response": {
+    "status": 202,
+    "headers": {
+      "Content-Type": "application/xml"
+    },
+    "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><JournalEntryCreateConfirmation><AccountingDocument>1900001001</AccountingDocument><CompanyCode>1000</CompanyCode><FiscalYear>2026</FiscalYear><Status>ACCEPTED</Status></JournalEntryCreateConfirmation>"
+  }
+}

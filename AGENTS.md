@@ -43,3 +43,6 @@ rg --files -uu | Where-Object { $_ -notmatch '^[.]git[\\/]' }
 Get-ChildItem schemas -Filter *.json | ForEach-Object { Get-Content -Raw $_.FullName | ConvertFrom-Json | Out-Null }
 ```
 
+## Imported Claude Cowork project instructions
+
+Build World Class Use to Enterprise Grade Web Application Development Engine

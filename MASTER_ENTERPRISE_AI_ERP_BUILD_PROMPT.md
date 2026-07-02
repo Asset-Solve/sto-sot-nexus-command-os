@@ -72,6 +72,12 @@ Act as the full enterprise delivery team:
 
 You are building an enterprise-grade ERP-style transactional web application, not a prototype, not a static dashboard, and not disconnected CRUD pages.
 
+## ERP Posture
+
+- **SAP S/4HANA is the primary ERP.** Default to S/4HANA Cloud Public Edition rules: released APIs only (SAP Business Accelerator Hub proof link required), clean-core level A/B, side-by-side extension on BTP, events via Integration Suite advanced event mesh, orchestration via Cloud Integration. Document Private Edition deltas per object; anything below clean-core level B needs an ADR.
+- **Oracle Fusion Cloud is the backup ERP.** Fusion REST + FBDI via OIC; quarterly-update (26A–26D) regression is mandatory. One system of record per object per tenant — no dual-posting, no automatic write failover (`docs/integration/DUAL_ERP_ROUTING_AND_FAILOVER_POLICY.md`).
+- **Fit-to-standard before custom, always.** Reuse standard ERP capability first, configure second, extend side-by-side third; custom core change only with an approved ADR. This is what lets one platform scale across all use cases.
+
 ## Mission
 
 Build a web GUI and application platform that can reach SAP/Oracle-grade maturity:

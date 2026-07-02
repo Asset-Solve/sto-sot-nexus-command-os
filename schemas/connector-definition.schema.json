@@ -26,6 +26,12 @@
       "items": { "enum": ["SIMULATOR", "SANDBOX", "LIVE"] }
     },
     "currentMode": { "enum": ["SIMULATOR", "SANDBOX", "LIVE"] },
+    "erpRole": { "enum": ["primary", "backup", "none"] },
+    "cleanCoreLevel": { "type": "string" },
+    "apiCatalogRefs": { "type": "array", "items": { "type": "string" } },
+    "eventTopics": { "type": "array", "items": { "type": "string" } },
+    "quarterlyUpdateRegression": { "type": "string" },
+    "notes": { "type": "string" },
     "authType": { "type": "string" },
     "destinationName": { "type": "string" },
     "cloudConnectorRequired": { "type": "boolean" },

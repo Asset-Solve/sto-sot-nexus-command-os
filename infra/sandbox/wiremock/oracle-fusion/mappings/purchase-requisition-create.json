@@ -1,0 +1,19 @@
+{
+  "request": {
+    "method": "POST",
+    "urlPath": "/fscmRestApi/resources/latest/purchaseRequisitions"
+  },
+  "response": {
+    "status": 201,
+    "headers": {
+      "Content-Type": "application/json",
+      "Location": "/fscmRestApi/resources/latest/purchaseRequisitions/3001001"
+    },
+    "jsonBody": {
+      "RequisitionHeaderId": 3001001,
+      "Requisition": "ORA-PR-SBX-1001",
+      "DocumentStatus": "INCOMPLETE",
+      "SandboxOutcome": "created"
+    }
+  }
+}

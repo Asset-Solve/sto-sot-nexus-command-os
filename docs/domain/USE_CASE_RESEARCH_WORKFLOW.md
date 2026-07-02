@@ -9,9 +9,15 @@
 5. Which decisions require approval?
 6. Which existing market applications solve part of this?
 7. What gaps remain in those applications?
-8. Which native APIs/connectors exist?
-9. Which data model extensions are needed?
-10. Which UI/UX workbenches are required?
+8. Which native APIs/connectors exist? (SAP: released APIs on the Business
+   Accelerator Hub + `sap.s4.beh.*` events; Oracle backup: Fusion REST/FBDI)
+9. What does standard SAP/Oracle already do for this use case, and does SAP
+   Joule / embedded Business AI already ship an agent or skill for it?
+   (Fit-to-standard: reuse > configure > extend side-by-side > custom.)
+10. Which data model extensions are needed?
+11. Which UI/UX workbenches are required?
+12. Can the resulting design be reused for adjacent use cases (same canonical
+    transaction, connectors, and workbenches with different configuration)?
 
 ## Research output structure
 

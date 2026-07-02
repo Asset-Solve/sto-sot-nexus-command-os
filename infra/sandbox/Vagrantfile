@@ -1,0 +1,33 @@
+# frozen_string_literal: true
+
+Vagrant.configure("2") do |config|
+  config.vm.box = ENV.fetch("ERP_SANDBOX_BOX", "bento/ubuntu-24.04")
+  config.vm.hostname = "erp-sandbox-vm"
+
+  config.vm.synced_folder "../..", "/workspace"
+
+  config.vm.network "private_network", ip: "192.168.56.67"
+  config.vm.network "forwarded_port", guest: 55432, host: 55432, auto_correct: true
+  config.vm.network "forwarded_port", guest: 18080, host: 18080, auto_correct: true
+  config.vm.network "forwarded_port", guest: 18081, host: 18081, auto_correct: true
+  config.vm.network "forwarded_port", guest: 18082, host: 18082, auto_correct: true
+  config.vm.network "forwarded_port", guest: 18083, host: 18083, auto_correct: true
+  config.vm.network "forwarded_port", guest: 18084, host: 18084, auto_correct: true
+  config.vm.network "forwarded_port", guest: 15672, host: 15672, auto_correct: true
+  config.vm.network "forwarded_port", guest: 13000, host: 13000, auto_correct: true
+  config.vm.network "forwarded_port", guest: 19090, host: 19090, auto_correct: true
+
+  config.vm.provider "virtualbox" do |vb|
+    vb.name = "enterprise-ai-erp-sandbox"
+    vb.cpus = ENV.fetch("ERP_SANDBOX_CPUS", "4").to_i
+    vb.memory = ENV.fetch("ERP_SANDBOX_MEMORY_MB", "8192").to_i
+  end
+
+  config.vm.provider "hyperv" do |hv|
+    hv.vmname = "enterprise-ai-erp-sandbox"
+    hv.cpus = ENV.fetch("ERP_SANDBOX_CPUS", "4").to_i
+    hv.memory = ENV.fetch("ERP_SANDBOX_MEMORY_MB", "8192").to_i
+  end
+
+  config.vm.provision "shell", path: "provision/bootstrap-ubuntu.sh"
+end

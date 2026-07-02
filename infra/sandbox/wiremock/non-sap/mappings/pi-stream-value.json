@@ -1,0 +1,20 @@
+{
+  "request": {
+    "method": "GET",
+    "urlPathPattern": "/piwebapi/streams/.*/value"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "jsonBody": {
+      "Timestamp": "2026-07-02T12:00:00Z",
+      "Value": 87.42,
+      "UnitsAbbreviation": "psi",
+      "Good": true,
+      "Questionable": false,
+      "Substituted": false
+    }
+  }
+}

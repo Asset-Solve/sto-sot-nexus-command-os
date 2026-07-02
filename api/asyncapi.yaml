@@ -1,7 +1,12 @@
 asyncapi: 3.0.0
 info:
   title: Enterprise AI ERP Events
-  version: 0.1.0
+  version: 0.2.0
+  description: >
+    Internal platform events plus inbound ERP business events. SAP events
+    arrive as CloudEvents from SAP Integration Suite advanced event mesh
+    (notification pattern: payload carries object keys; consumers read back
+    full state via the released OData API). Oracle events arrive via OIC.
 channels:
   transaction.status.changed:
     address: transaction.status.changed
@@ -25,4 +30,55 @@ channels:
             outboxId: { type: string }
             targetSystem: { type: string }
             targetDocumentNumber: { type: string }
+            correlationId: { type: string }
+  outbox.deadlettered:
+    address: outbox.deadlettered
+    messages:
+      OutboxDeadLettered:
+        payload:
+          type: object
+          properties:
+            outboxId: { type: string }
+            targetSystem: { type: string }
+            failureReason: { type: string }
+            retryCount: { type: integer }
+            correlationId: { type: string }
+  reconciliation.mismatch.detected:
+    address: reconciliation.mismatch.detected
+    messages:
+      ReconciliationMismatchDetected:
+        payload:
+          type: object
+          properties:
+            transactionId: { type: string }
+            targetSystem: { type: string }
+            targetDocumentNumber: { type: string }
+            mismatchReason: { type: string }
+            correlationId: { type: string }
+  erp.sap.businessevent.received:
+    address: erp.sap.businessevent.received
+    messages:
+      SapBusinessEventReceived:
+        payload:
+          type: object
+          description: CloudEvents envelope from sap.s4.beh.* topics (keys only; read back via OData)
+          properties:
+            specversion: { type: string }
+            type: { type: string, description: "e.g. sap.s4.beh.purchaseorder.released.v1" }
+            source: { type: string }
+            subject: { type: string, description: object key(s) }
+            time: { type: string }
+            correlationId: { type: string }
+  erp.oracle.businessevent.received:
+    address: erp.oracle.businessevent.received
+    messages:
+      OracleBusinessEventReceived:
+        payload:
+          type: object
+          description: Fusion business event delivered via OIC
+          properties:
+            eventName: { type: string }
+            resourceType: { type: string }
+            resourceId: { type: string }
+            time: { type: string }
             correlationId: { type: string }

@@ -1,0 +1,19 @@
+{
+  "request": {
+    "method": "POST",
+    "urlPathPattern": "/ic/api/integration/v1/flows/rest/.*"
+  },
+  "response": {
+    "status": 202,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "jsonBody": {
+      "accepted": true,
+      "integration": "ERP_SANDBOX_POST",
+      "faultHandler": "enabled",
+      "parkingTable": "enabled",
+      "correlationId": "{{request.headers.X-Correlation-Id}}"
+    }
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "request": {
+    "method": "POST",
+    "urlPathPattern": "/oracle/events/.*"
+  },
+  "response": {
+    "status": 202,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "jsonBody": {
+      "accepted": true,
+      "eventBroker": "OIC_SANDBOX",
+      "correlationId": "{{request.headers.X-Correlation-Id}}"
+    }
+  }
+}

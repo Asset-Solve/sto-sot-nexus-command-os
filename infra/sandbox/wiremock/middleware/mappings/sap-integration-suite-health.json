@@ -1,0 +1,17 @@
+{
+  "request": {
+    "method": "GET",
+    "urlPath": "/sap-is/health"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "jsonBody": {
+      "status": "UP",
+      "system": "SAP_INTEGRATION_SUITE_SANDBOX",
+      "capabilities": ["iflow", "api_management", "event_route", "dlq"]
+    }
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "request": {
+    "method": "POST",
+    "urlPathPattern": "/maximo/oslc/os/mxapiwodetail.*"
+  },
+  "response": {
+    "status": 201,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "jsonBody": {
+      "wonum": "MX-SBX-1001",
+      "siteid": "BEDFORD",
+      "status": "WAPPR",
+      "sandboxOutcome": "created"
+    }
+  }
+}

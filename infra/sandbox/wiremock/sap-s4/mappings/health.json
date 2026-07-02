@@ -1,0 +1,18 @@
+{
+  "request": {
+    "method": "GET",
+    "urlPath": "/sap/health"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "jsonBody": {
+      "status": "UP",
+      "system": "S4HANA_SANDBOX_SIMULATOR",
+      "mode": "SANDBOX",
+      "cleanCoreLevel": "A_released_apis_only"
+    }
+  }
+}

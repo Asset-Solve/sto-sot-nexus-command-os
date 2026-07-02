@@ -1,5 +1,18 @@
 # Testing and Evaluation Strategy
 
+## Local Sandbox Stack
+
+A runnable Docker Compose sandbox lives in `infra/sandbox/` (SAP S/4, Oracle
+Fusion, middleware, and non-SAP WireMock simulators; Keycloak; Postgres;
+RabbitMQ standing in for advanced event mesh; Redis; MinIO; Mailpit;
+Prometheus/Grafana/OTel). Operate it via
+`docs/operations/SANDBOX_VM_RUNBOOK.md`; run the baseline scenarios in
+`docs/testing/SANDBOX_INTEGRATION_TEST_MATRIX.md` (SBX-001..008, seeded from
+`infra/sandbox/seed/use-case-scenarios.yaml`); record results in
+`docs/testing/SANDBOX_VALIDATION_EVIDENCE.md`. SANDBOX-mode runs must go
+through the same connector interfaces as LIVE — simulator-only evidence does
+not satisfy Stage 20.
+
 ## Required Tests
 
 | Test type | What it proves |

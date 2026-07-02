@@ -1,0 +1,19 @@
+{
+  "request": {
+    "method": "GET",
+    "urlPathPattern": "/fscmRestApi/resources/latest/maintenanceWorkOrders/.*"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "jsonBody": {
+      "WorkOrderId": 1001,
+      "WorkOrderNumber": "ORA-MWO-SBX-1001",
+      "AssetNumber": "EQ-1001",
+      "Status": "RELEASED",
+      "SourceSystem": "ORACLE_FUSION_SANDBOX"
+    }
+  }
+}
