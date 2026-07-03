@@ -229,6 +229,15 @@ export function ensureSeeded(): Db {
   ];
   for (const op of operations) bo(db, T1, 'MaintenanceOperationProxy', op.id, 'SAP_S4', 'MaintenanceOrderOperation', op.id, 'released', 'u-planner', { ...op, plantId: 'P100' });
 
+  const components = [
+    { id: 'CMP-4000101-0030-001', orderId: 'ORD-4000101', operationId: 'OP-4000101-0030', materialId: 'MAT-4714', quantity: 6, oldQuantity: 4, status: 'SHORT', requirementDate: '2026-07-03', wpId: 'WP-1001', state: 'shortage', storageLocation: 'SL01' },
+    { id: 'CMP-4000102-0020-001', orderId: 'ORD-4000102', operationId: 'OP-4000102-0020', materialId: 'MAT-4712', quantity: 1, oldQuantity: 1, status: 'PLANNED', requirementDate: '2026-07-01', wpId: 'WP-1002', state: 'planned', storageLocation: 'SL02' },
+    { id: 'CMP-4000103-0010-001', orderId: 'ORD-4000103', operationId: 'OP-4000103-0010', materialId: 'MAT-4713', quantity: 80, oldQuantity: 60, status: 'CHANGE_NEEDED', requirementDate: '2026-07-05', wpId: 'WP-1003', state: 'change_needed', storageLocation: 'SL01' }
+  ];
+  for (const c of components) bo(db, T1, 'MaintenanceOrderComponentProxy', c.id, 'SAP_S4', 'MaintenanceOrderComponent', c.id, c.state, 'u-planner', {
+    ...c, plantId: 'P100', eventId: 'EV-1001'
+  }, { riskClass: c.state === 'shortage' ? 'HIGH' : 'MEDIUM' });
+
   // ---------------- scope ----------------
   const scope = [
     { id: 'SC-001', title: 'Replace C-101 trays 12-18', source: 'SAP_NOTIFICATION', ref: 'NOTIF-10000201', state: 'approved', est: 1.8, risk: 'HIGH' },
@@ -301,6 +310,31 @@ export function ensureSeeded(): Db {
   for (const d of demands) bo(db, T1, 'MaterialDemand', d.id, 'STO_PLATFORM', 'MaterialDemand', d.id, d.state, 'u-matl', {
     ...d, plantId: 'P100', eventId: 'EV-1001', storageLocation: 'SL01'
   }, { riskClass: d.state === 'shortage' ? 'HIGH' : 'MEDIUM' });
+  bo(db, T1, 'ReservationProxy', 'RES-0002100244', 'SAP_S4', 'ReservationDocument', '0002100244', 'created', 'u-matl', {
+    desc: 'Reservation 0002100244 / MAT-4712 x 1',
+    reservation: '0002100244',
+    reservationItem: '0010',
+    materialId: 'MAT-4712',
+    quantity: 1,
+    oldQuantity: 1,
+    plantId: 'P100',
+    storageLocation: 'SL02',
+    requiredDate: '2026-07-01',
+    orderId: 'ORD-4000102',
+    workPackageId: 'WP-1002',
+    eventId: 'EV-1001'
+  });
+  bo(db, T1, 'GoodsMovementProxy', 'GM-4900003311', 'SAP_S4', 'MaterialDocument', '4900003311', 'issued', 'u-wh', {
+    goodsMovementType: '261',
+    reservation: '0002100111',
+    materialId: 'MAT-4711',
+    quantity: 24,
+    plantId: 'P100',
+    storageLocation: 'SL01',
+    orderId: 'ORD-4000101',
+    eventId: 'EV-1001',
+    desc: 'Issued MAT-4711 gasket sets to C-101 tray package'
+  });
   bo(db, T1, 'ExpeditingCase', 'EXP-001', 'STO_PLATFORM', 'ExpeditingCase', 'EXP-001', 'open', 'u-proc', {
     demandId: 'MD-002', vendorId: 'V-9001', promiseDate: '2026-07-02', note: 'Air freight from Houston DC', eventId: 'EV-1001'
   }, { riskClass: 'HIGH' });
@@ -482,7 +516,7 @@ export function ensureSeeded(): Db {
     wpId: 'WP-1002', revision: 'B', latestRevision: 'C', documentCount: 18, missingApprovals: ['Engineering'], eventId: 'EV-1001', plantId: 'P100'
   }, { riskClass: 'HIGH', sourceMode: 'CACHE' });
   bo(db, T1, 'PermitRequirement', 'PRQ-WP1002-HOT', 'STO_PLATFORM', 'PermitRequirement', 'PRQ-WP1002-HOT', 'missing', 'u-hse', {
-    wpId: 'WP-1002', permitType: 'Hot Work', requiredBy: '2026-07-03', sourcePermitId: 'PTW-88103', eventId: 'EV-1001', plantId: 'P100'
+    wpId: 'WP-1002', orderId: 'ORD-4000102', permitType: 'Hot Work', requiredBy: '2026-07-03', sourcePermitId: 'PTW-88103', eventId: 'EV-1001', plantId: 'P100'
   }, { riskClass: 'SAFETY_CRITICAL' });
   bo(db, T1, 'InspectionHoldPoint', 'IHP-WP1002-HYDRO', 'STO_PLATFORM', 'InspectionHoldPoint', 'IHP-WP1002-HYDRO', 'open', 'u-qa', {
     wpId: 'WP-1002', method: 'Hydrotest witness', requiredEvidence: 'QA signoff + calibrated gauge cert', eventId: 'EV-1001', plantId: 'P100'

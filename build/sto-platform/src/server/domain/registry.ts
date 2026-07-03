@@ -193,6 +193,57 @@ export const ACTIONS: ActionDefinition[] = [
     }
   },
   {
+    id: 'scope.create_order',
+    label: 'Create SAP Maintenance Order',
+    description: 'Create a maintenance order from approved STO scope through the SAP Maintenance Order API instead of sending the planner back to SAP GUI/Fiori.',
+    screen: '/scope', businessCapability: 'Scope Management', actionClass: 'CONTROLLED', riskClass: 'HIGH',
+    allowedRoles: ['maintenance_planner', 'scope_board_member', 'sto_manager'], approverRoles: ['outage_manager', 'sto_manager'],
+    sod: true, targetObjectType: 'MaintenanceOrderProxy', targetSystem: 'SAP_S4',
+    connectorId: 'sap-eam-order', connectorOperation: 'create',
+    fields: [
+      { name: 'sourceObjectId', label: 'Scope candidate', type: 'lookup', lookupCategory: 'scopeCandidates', required: true },
+      { name: 'notificationId', label: 'SAP notification', type: 'lookup', lookupCategory: 'notifications' },
+      { name: 'shortText', label: 'Order short text', type: 'text', required: true },
+      { name: 'orderType', label: 'Order type', type: 'text', required: true },
+      { name: 'plantId', label: 'Maintenance plant', type: 'lookup', lookupCategory: 'plants', required: true },
+      { name: 'workCenterId', label: 'Main work center', type: 'lookup', lookupCategory: 'workCenters', dependsOn: ['plantId'], required: true },
+      { name: 'wbsId', label: 'WBS element', type: 'lookup', lookupCategory: 'wbsElements', required: true },
+      { name: 'basicStart', label: 'Basic start', type: 'date', required: true },
+      { name: 'basicFinish', label: 'Basic finish', type: 'date', required: true }
+    ],
+    validate: (p) => {
+      const out = req(p, ['sourceObjectId', 'shortText', 'orderType', 'plantId', 'workCenterId', 'wbsId', 'basicStart', 'basicFinish']);
+      if (p['basicStart'] && p['basicFinish'] && String(p['basicStart']) > String(p['basicFinish'])) out.push({ severity: 'ERROR', field: 'basicFinish', message: 'Basic finish must be after start.' });
+      return out;
+    },
+    buildPayload: (p) => ({
+      apiService: 'API_MAINTENANCEORDER_0002',
+      MaintenanceOrder: {
+        MaintenanceOrderType: p['orderType'],
+        MaintenanceOrderDesc: p['shortText'],
+        MaintenancePlanningPlant: p['plantId'],
+        MainWorkCenter: p['workCenterId'],
+        BasicStartDate: p['basicStart'],
+        BasicEndDate: p['basicFinish'],
+        MaintenanceNotification: p['notificationId'],
+        WBSElement: p['wbsId']
+      }
+    }),
+    apply: (p, txn, ctx) => {
+      const orderId = `ORD-${txn.targetDocumentNumber ?? txn.transactionId}`;
+      const db = getDb();
+      putObject(db, {
+        id: orderId, tenantId: ctx.tenantId, objectType: 'MaintenanceOrderProxy',
+        sourceSystem: 'SAP_S4', sourceMode: 'SIMULATOR', sourceObject: 'MaintenanceOrder',
+        sourceReference: txn.targetDocumentNumber ?? 'PENDING', lifecycleState: 'created', approvalState: 'APPROVED',
+        riskClass: 'HIGH', owner: ctx.user.id, sourceFreshness: nowIso(),
+        createdBy: ctx.user.id, createdAt: nowIso(), updatedBy: ctx.user.id, updatedAt: nowIso(), correlationId: txn.correlationId,
+        data: { desc: p['shortText'], notifId: p['notificationId'], wbsId: p['wbsId'], plantId: p['plantId'], workCenterId: p['workCenterId'], status: 'CRTD', basicStart: p['basicStart'], basicFinish: p['basicFinish'], fromScope: p['sourceObjectId'] }
+      });
+      setState(ctx.tenantId, p['sourceObjectId'] as string, 'order_created', ctx, { orderId });
+    }
+  },
+  {
     id: 'emergent.raise',
     label: 'Raise Emergent Work',
     description: 'Raise emergent work with risk, owner, schedule and cost impact.',
@@ -220,6 +271,225 @@ export const ACTIONS: ActionDefinition[] = [
   },
 
   // ======================= WORK PACKAGES =======================
+  {
+    id: 'order.add_operation',
+    label: 'Add SAP Order Operation',
+    description: 'Add a maintenance order operation/suboperation through the SAP Maintenance Order API. Use this instead of IW32/Fiori when building an STO work package.',
+    screen: '/work-packages', businessCapability: 'Work Package Management', actionClass: 'CONTROLLED', riskClass: 'MEDIUM',
+    allowedRoles: ['maintenance_planner', 'work_package_owner', 'sto_manager'], approverRoles: ['maintenance_supervisor', 'sto_manager'],
+    sod: true, targetObjectType: 'MaintenanceOperationProxy', targetSystem: 'SAP_S4',
+    connectorId: 'sap-eam-order', connectorOperation: 'update',
+    fields: [
+      { name: 'orderId', label: 'Maintenance order', type: 'lookup', lookupCategory: 'orders', required: true },
+      { name: 'operationDescription', label: 'Operation description', type: 'text', required: true },
+      { name: 'workCenterId', label: 'Work center', type: 'lookup', lookupCategory: 'workCenters', required: true },
+      { name: 'controlKey', label: 'Control key', type: 'text', required: true },
+      { name: 'plannedWorkHours', label: 'Planned work hours', type: 'number', required: true }
+    ],
+    validate: (p) => {
+      const out = req(p, ['orderId', 'operationDescription', 'workCenterId', 'controlKey', 'plannedWorkHours']);
+      if (Number(p['plannedWorkHours']) <= 0) out.push({ severity: 'ERROR', field: 'plannedWorkHours', message: 'Planned work must be positive.' });
+      return out;
+    },
+    buildPayload: (p) => ({
+      apiService: 'API_MAINTENANCEORDER_0002',
+      MaintenanceOrderOperation: {
+        MaintenanceOrder: p['orderId'],
+        OperationDescription: p['operationDescription'],
+        WorkCenter: p['workCenterId'],
+        OperationControlKey: p['controlKey'],
+        PlannedWorkQuantity: p['plannedWorkHours']
+      }
+    }),
+    apply: (p, txn, ctx) => {
+      const db = getDb();
+      const id = `OP-${String(p['orderId']).replace('ORD-', '')}-${txn.targetDocumentNumber ?? newId('0010')}`;
+      putObject(db, {
+        id, tenantId: ctx.tenantId, objectType: 'MaintenanceOperationProxy', sourceSystem: 'SAP_S4',
+        sourceMode: 'SIMULATOR', sourceObject: 'MaintenanceOrderOperation', sourceReference: txn.targetDocumentNumber ?? id,
+        lifecycleState: 'released', approvalState: 'APPROVED', riskClass: 'MEDIUM', owner: ctx.user.id,
+        sourceFreshness: nowIso(), createdBy: ctx.user.id, createdAt: nowIso(), updatedBy: ctx.user.id, updatedAt: nowIso(),
+        correlationId: txn.correlationId,
+        data: { orderId: p['orderId'], desc: p['operationDescription'], workCenterId: p['workCenterId'], hours: p['plannedWorkHours'], status: 'REL', plantId: 'P100' }
+      });
+    }
+  },
+  {
+    id: 'order.add_component',
+    label: 'Add SAP Order Component',
+    description: 'Add material/component demand to the maintenance order operation via the SAP Maintenance Order API; downstream reservation/PR/GI actions stay governed separately.',
+    screen: '/work-packages', businessCapability: 'Work Package Management', actionClass: 'CONTROLLED', riskClass: 'MEDIUM',
+    allowedRoles: ['maintenance_planner', 'work_package_owner', 'material_planner', 'sto_manager'], approverRoles: ['maintenance_supervisor', 'sto_manager'],
+    sod: true, targetObjectType: 'MaintenanceOrderComponentProxy', targetSystem: 'SAP_S4',
+    connectorId: 'sap-eam-order', connectorOperation: 'update',
+    fields: [
+      { name: 'orderId', label: 'Maintenance order', type: 'lookup', lookupCategory: 'orders', required: true },
+      { name: 'operationId', label: 'Operation', type: 'lookup', lookupCategory: 'operations', dependsOn: ['orderId'], required: true },
+      { name: 'materialId', label: 'Material', type: 'lookup', lookupCategory: 'materials', required: true },
+      { name: 'quantity', label: 'Quantity', type: 'number', required: true },
+      { name: 'plantId', label: 'Plant', type: 'lookup', lookupCategory: 'plants', required: true },
+      { name: 'storageLocation', label: 'Storage location', type: 'lookup', lookupCategory: 'storageLocations', dependsOn: ['plantId'], required: true },
+      { name: 'requirementDate', label: 'Requirement date', type: 'date', required: true }
+    ],
+    validate: (p) => {
+      const out = req(p, ['orderId', 'operationId', 'materialId', 'quantity', 'plantId', 'storageLocation', 'requirementDate']);
+      if (Number(p['quantity']) <= 0) out.push({ severity: 'ERROR', field: 'quantity', message: 'Quantity must be positive.' });
+      return out;
+    },
+    buildPayload: (p) => ({
+      apiService: 'API_MAINTENANCEORDER_0002',
+      MaintenanceOrderComponent: {
+        MaintenanceOrder: p['orderId'],
+        MaintenanceOrderOperation: p['operationId'],
+        Material: p['materialId'],
+        RequirementQuantity: p['quantity'],
+        Plant: p['plantId'],
+        StorageLocation: p['storageLocation'],
+        RequirementDate: p['requirementDate']
+      }
+    }),
+    apply: (p, txn, ctx) => {
+      const db = getDb();
+      const id = `CMP-${txn.targetDocumentNumber ?? newId('cmp')}`;
+      putObject(db, {
+        id, tenantId: ctx.tenantId, objectType: 'MaintenanceOrderComponentProxy', sourceSystem: 'SAP_S4',
+        sourceMode: 'SIMULATOR', sourceObject: 'MaintenanceOrderComponent', sourceReference: txn.targetDocumentNumber ?? id,
+        lifecycleState: 'planned', approvalState: 'APPROVED', riskClass: 'MEDIUM', owner: ctx.user.id,
+        sourceFreshness: nowIso(), createdBy: ctx.user.id, createdAt: nowIso(), updatedBy: ctx.user.id, updatedAt: nowIso(),
+        correlationId: txn.correlationId,
+        data: { ...p, status: 'PLANNED', eventId: 'EV-1001' }
+      });
+    }
+  },
+  {
+    id: 'order.reschedule',
+    label: 'Reschedule SAP Order',
+    description: 'Update maintenance order basic dates after schedule-impact review. This is the SAP EAM counterpart to P6 rebaseline.',
+    screen: '/schedule', businessCapability: 'Schedule Management', actionClass: 'CONTROLLED', riskClass: 'HIGH',
+    allowedRoles: ['scheduler_project_controls', 'maintenance_planner', 'sto_manager'], approverRoles: ['outage_manager', 'sto_manager'],
+    requiresReason: true, sod: true, targetObjectType: 'MaintenanceOrderProxy', targetSystem: 'SAP_S4',
+    connectorId: 'sap-eam-order', connectorOperation: 'update',
+    fields: [
+      { name: 'orderId', label: 'Maintenance order', type: 'lookup', lookupCategory: 'orders', required: true },
+      { name: 'basicStart', label: 'Basic start', type: 'date', required: true },
+      { name: 'basicFinish', label: 'Basic finish', type: 'date', required: true },
+      { name: 'reason', label: 'Reason', type: 'textarea', required: true }
+    ],
+    validate: (p) => {
+      const out = req(p, ['orderId', 'basicStart', 'basicFinish', 'reason']);
+      if (p['basicStart'] && p['basicFinish'] && String(p['basicStart']) > String(p['basicFinish'])) out.push({ severity: 'ERROR', field: 'basicFinish', message: 'Basic finish must be after start.' });
+      return out;
+    },
+    buildPayload: (p) => ({
+      apiService: 'API_MAINTENANCEORDER_0002',
+      MaintenanceOrder: { MaintenanceOrder: p['orderId'], BasicStartDate: p['basicStart'], BasicEndDate: p['basicFinish'], ChangeReason: p['reason'] }
+    }),
+    apply: (p, _t, ctx) => setState(ctx.tenantId, p['orderId'] as string, 'rescheduled', ctx, { basicStart: p['basicStart'], basicFinish: p['basicFinish'], scheduleChangeReason: p['reason'] })
+  },
+  {
+    id: 'order.set_status',
+    label: 'Change SAP Order Status',
+    description: 'Release, technically complete, or business-close a maintenance order through the governed SAP order status path.',
+    screen: '/work-packages', businessCapability: 'Work Package Management', actionClass: 'CONTROLLED', riskClass: 'HIGH',
+    allowedRoles: ['maintenance_planner', 'maintenance_supervisor', 'sto_manager'], approverRoles: ['maintenance_supervisor', 'sto_manager'],
+    requiresReason: true, sod: true, targetObjectType: 'MaintenanceOrderProxy', targetSystem: 'SAP_S4',
+    connectorId: 'sap-eam-order', connectorOperation: 'update',
+    fields: [
+      { name: 'orderId', label: 'Maintenance order', type: 'lookup', lookupCategory: 'orders', required: true },
+      { name: 'newStatus', label: 'New status (release/teco/close)', type: 'text', required: true },
+      { name: 'reason', label: 'Reason', type: 'textarea', required: true }
+    ],
+    validate: (p, ctx) => {
+      const out = req(p, ['orderId', 'newStatus', 'reason']);
+      const status = String(p['newStatus'] ?? '').toLowerCase();
+      if (!['release', 'teco', 'close'].includes(status)) out.push({ severity: 'ERROR', field: 'newStatus', message: 'Status must be release, teco or close.' });
+      if (status === 'teco' || status === 'close') {
+        const db = getDb();
+        const wp = listObjects(db, ctx.tenantId, 'WorkPackage', (o) => o.data['orderId'] === p['orderId'])[0];
+        if (wp) {
+          const openPunch = listObjects(db, ctx.tenantId, 'PunchItem', (o) => o.data['wpId'] === wp.id && o.lifecycleState === 'open');
+          const unsafePermits = listObjects(db, ctx.tenantId, 'PermitProxy', (o) => o.data['wpId'] === wp.id && ['active', 'suspended', 'expired'].includes(o.lifecycleState));
+          if (openPunch.length) out.push({ severity: 'ERROR', message: `TECO/close blocked by open punch item(s): ${openPunch.map((x) => x.id).join(', ')}.` });
+          if (unsafePermits.length) out.push({ severity: 'ERROR', message: `TECO/close blocked until WCM permits are closed/restored: ${unsafePermits.map((x) => x.id).join(', ')}.` });
+        }
+      }
+      return out;
+    },
+    buildPayload: (p) => ({
+      apiService: 'API_MAINTENANCEORDER_0002',
+      MaintenanceOrderStatusChange: { MaintenanceOrder: p['orderId'], RequestedStatus: p['newStatus'], Reason: p['reason'] }
+    }),
+    apply: (p, _t, ctx) => {
+      const status = String(p['newStatus']).toLowerCase();
+      const state = status === 'release' ? 'released' : status === 'teco' ? 'technically_completed' : 'business_closed';
+      setState(ctx.tenantId, p['orderId'] as string, state, ctx, { status: status.toUpperCase(), statusReason: p['reason'] });
+    }
+  },
+  {
+    id: 'order.attach_evidence',
+    label: 'Attach Evidence to SAP Order',
+    description: 'Attach package evidence, QA files or field photos to the SAP order object using the S/4 Attachments API.',
+    screen: '/work-packages', businessCapability: 'Digital Workpacks', actionClass: 'CONTROLLED', riskClass: 'MEDIUM',
+    allowedRoles: ['work_package_owner', 'maintenance_planner', 'qa_qc_inspector', 'maintenance_supervisor'], approverRoles: ['work_package_owner', 'sto_manager'],
+    sod: true, targetObjectType: 'AttachmentProxy', targetSystem: 'SAP_DMS',
+    connectorId: 'sap-dms', connectorOperation: 'create',
+    fields: [
+      { name: 'orderId', label: 'Maintenance order', type: 'lookup', lookupCategory: 'orders', required: true },
+      { name: 'attachmentType', label: 'Attachment type', type: 'text', required: true },
+      { name: 'fileName', label: 'File name', type: 'text', required: true },
+      { name: 'evidenceRef', label: 'Evidence reference', type: 'text', required: true }
+    ],
+    validate: (p) => req(p, ['orderId', 'attachmentType', 'fileName', 'evidenceRef']),
+    buildPayload: (p) => ({
+      apiService: 'API_CV_ATTACHMENT_SRV',
+      AttachmentContent: { BusinessObjectTypeName: 'MaintenanceOrder', LinkedSAPObjectKey: p['orderId'], FileName: p['fileName'], AttachmentType: p['attachmentType'], ExternalEvidenceReference: p['evidenceRef'] }
+    }),
+    apply: (p, txn, ctx) => {
+      const db = getDb();
+      putObject(db, {
+        id: `ATT-${txn.targetDocumentNumber ?? txn.transactionId}`, tenantId: ctx.tenantId, objectType: 'AttachmentProxy',
+        sourceSystem: 'SAP_DMS', sourceMode: 'SIMULATOR', sourceObject: 'AttachmentContent', sourceReference: txn.targetDocumentNumber ?? 'PENDING',
+        lifecycleState: 'attached', approvalState: 'APPROVED', riskClass: 'MEDIUM', owner: ctx.user.id,
+        sourceFreshness: nowIso(), createdBy: ctx.user.id, createdAt: nowIso(), updatedBy: ctx.user.id, updatedAt: nowIso(),
+        correlationId: txn.correlationId, data: { ...p, desc: `Attachment ${p['fileName']} on ${p['orderId']}` }
+      });
+    }
+  },
+  {
+    id: 'mobile.dispatch_package',
+    label: 'Dispatch Package to Mobile',
+    description: 'Stage a released work package to SAP Service and Asset Manager / FSM so field execution can happen without returning to SAP GUI.',
+    screen: '/execution-map', businessCapability: 'Execution', actionClass: 'CONTROLLED', riskClass: 'MEDIUM',
+    allowedRoles: ['maintenance_supervisor', 'scheduler_project_controls', 'sto_manager'], approverRoles: ['outage_manager', 'maintenance_supervisor'],
+    sod: true, targetObjectType: 'DispatchPacket', targetSystem: 'SAP_SSAM',
+    connectorId: 'sap-ssam-mobile', connectorOperation: 'update',
+    fields: [
+      { name: 'workPackageId', label: 'Work package', type: 'lookup', lookupCategory: 'workPackages', required: true },
+      { name: 'crewId', label: 'Crew', type: 'lookup', lookupCategory: 'crews', required: true },
+      { name: 'shift', label: 'Shift', type: 'text', required: true },
+      { name: 'dispatchNote', label: 'Dispatch note', type: 'textarea', required: true }
+    ],
+    validate: (p, ctx) => {
+      const out = req(p, ['workPackageId', 'crewId', 'shift', 'dispatchNote']);
+      const wp = getObject(getDb(), ctx.tenantId, p['workPackageId'] as string);
+      if (wp && wp.lifecycleState !== 'released') out.push({ severity: 'ERROR', field: 'workPackageId', message: 'Only released work packages can be dispatched to mobile.' });
+      return out;
+    },
+    buildPayload: (p) => ({
+      apiService: 'SSAM_MOBILE_SYNC',
+      MobileDispatchPacket: { WorkPackage: p['workPackageId'], Crew: p['crewId'], Shift: p['shift'], Note: p['dispatchNote'] }
+    }),
+    apply: (p, txn, ctx) => {
+      const db = getDb();
+      putObject(db, {
+        id: `DP-${txn.targetDocumentNumber ?? txn.transactionId}`, tenantId: ctx.tenantId, objectType: 'DispatchPacket',
+        sourceSystem: 'SAP_SSAM', sourceMode: 'SIMULATOR', sourceObject: 'MobileDispatchPacket', sourceReference: txn.targetDocumentNumber ?? 'STAGED',
+        lifecycleState: 'dispatched', approvalState: 'APPROVED', riskClass: 'MEDIUM', owner: ctx.user.id,
+        sourceFreshness: nowIso(), createdBy: ctx.user.id, createdAt: nowIso(), updatedBy: ctx.user.id, updatedAt: nowIso(),
+        correlationId: txn.correlationId, data: { ...p, eventId: 'EV-1001', plantId: 'P100' }
+      });
+    }
+  },
   {
     id: 'wp.release',
     label: 'Release Work Package',
@@ -530,6 +800,148 @@ export const ACTIONS: ActionDefinition[] = [
     })
   },
   {
+    id: 'reservation.change_quantity',
+    label: 'Change SAP Reservation Qty',
+    description: 'Update an existing SAP reservation item quantity through the Reservation Document API. This is the governed STO path for material quantity changes instead of returning to SAP GUI.',
+    screen: '/materials', businessCapability: 'Materials Management', actionClass: 'CONTROLLED', riskClass: 'MEDIUM',
+    allowedRoles: ['material_planner', 'warehouse_lead', 'maintenance_planner'], approverRoles: ['maintenance_supervisor', 'sto_manager'],
+    requiresReason: true, sod: true, targetObjectType: 'ReservationProxy', targetSystem: 'SAP_S4',
+    connectorId: 'sap-mm-reservation', connectorOperation: 'update',
+    fields: [
+      { name: 'reservation', label: 'Reservation', type: 'text', required: true },
+      { name: 'reservationItem', label: 'Reservation item', type: 'text', required: true },
+      { name: 'materialId', label: 'Material', type: 'lookup', lookupCategory: 'materials', required: true },
+      { name: 'oldQuantity', label: 'Current quantity', type: 'number' },
+      { name: 'newQuantity', label: 'New quantity', type: 'number', required: true },
+      { name: 'requiredDate', label: 'Requirement date', type: 'date', required: true },
+      { name: 'reason', label: 'Reason', type: 'textarea', required: true }
+    ],
+    validate: (p) => {
+      const out = req(p, ['reservation', 'reservationItem', 'materialId', 'newQuantity', 'requiredDate', 'reason']);
+      if (Number(p['newQuantity']) <= 0) out.push({ severity: 'ERROR', field: 'newQuantity', message: 'New quantity must be positive.' });
+      if (p['oldQuantity'] !== undefined && Number(p['oldQuantity']) === Number(p['newQuantity'])) out.push({ severity: 'ERROR', field: 'newQuantity', message: 'New quantity must differ from current quantity.' });
+      return out;
+    },
+    buildPayload: (p) => ({
+      apiService: 'API_RESERVATION_DOCUMENT_SRV',
+      ReservationDocumentItemUpdate: {
+        Reservation: p['reservation'],
+        ReservationItem: p['reservationItem'],
+        Material: p['materialId'],
+        ResvnItmRequiredQtyInBaseUnit: p['newQuantity'],
+        RequirementDate: p['requiredDate'],
+        ChangeReason: p['reason']
+      }
+    }),
+    apply: (p, txn, ctx) => {
+      const db = getDb();
+      const res = listObjects(db, ctx.tenantId, 'ReservationProxy', (o) => o.sourceReference === p['reservation'] || o.id === p['reservation'])[0];
+      if (res) {
+        res.lifecycleState = 'quantity_changed';
+        Object.assign(res.data, { quantity: p['newQuantity'], requiredDate: p['requiredDate'], quantityChangeReason: p['reason'], reservationItem: p['reservationItem'] });
+        touch(res, ctx.user.id);
+      } else {
+        putObject(db, {
+          id: `RES-${String(p['reservation'])}`, tenantId: ctx.tenantId, objectType: 'ReservationProxy',
+          sourceSystem: 'SAP_S4', sourceMode: 'SIMULATOR', sourceObject: 'ReservationDocument',
+          sourceReference: String(p['reservation']), lifecycleState: 'quantity_changed', approvalState: 'APPROVED',
+          riskClass: 'MEDIUM', owner: ctx.user.id, sourceFreshness: nowIso(),
+          createdBy: ctx.user.id, createdAt: nowIso(), updatedBy: ctx.user.id, updatedAt: nowIso(), correlationId: txn.correlationId,
+          data: { materialId: p['materialId'], quantity: p['newQuantity'], reservationItem: p['reservationItem'], requiredDate: p['requiredDate'], desc: `Reservation ${p['reservation']} updated by ${txn.targetDocumentNumber}` }
+        });
+      }
+    }
+  },
+  {
+    id: 'order.change_component_qty',
+    label: 'Change SAP Order Component Qty',
+    description: 'Update the material component quantity on a maintenance order operation through the SAP Maintenance Order API before reservation/procurement execution.',
+    screen: '/work-packages', businessCapability: 'Work Package Management', actionClass: 'CONTROLLED', riskClass: 'MEDIUM',
+    allowedRoles: ['maintenance_planner', 'work_package_owner', 'material_planner'], approverRoles: ['maintenance_supervisor', 'sto_manager'],
+    requiresReason: true, sod: true, targetObjectType: 'MaintenanceOrderComponentProxy', targetSystem: 'SAP_S4',
+    connectorId: 'sap-eam-order', connectorOperation: 'update',
+    fields: [
+      { name: 'componentId', label: 'Component row', type: 'text', required: true },
+      { name: 'orderId', label: 'Maintenance order', type: 'lookup', lookupCategory: 'orders', required: true },
+      { name: 'operationId', label: 'Operation', type: 'lookup', lookupCategory: 'operations', dependsOn: ['orderId'], required: true },
+      { name: 'materialId', label: 'Material', type: 'lookup', lookupCategory: 'materials', required: true },
+      { name: 'oldQuantity', label: 'Current quantity', type: 'number' },
+      { name: 'newQuantity', label: 'New quantity', type: 'number', required: true },
+      { name: 'requirementDate', label: 'Requirement date', type: 'date', required: true },
+      { name: 'reason', label: 'Reason', type: 'textarea', required: true }
+    ],
+    validate: (p) => {
+      const out = req(p, ['componentId', 'orderId', 'operationId', 'materialId', 'newQuantity', 'requirementDate', 'reason']);
+      if (Number(p['newQuantity']) <= 0) out.push({ severity: 'ERROR', field: 'newQuantity', message: 'New quantity must be positive.' });
+      return out;
+    },
+    buildPayload: (p) => ({
+      apiService: 'API_MAINTENANCEORDER_0002',
+      MaintenanceOrderComponentUpdate: {
+        MaintenanceOrder: p['orderId'],
+        MaintenanceOrderOperation: p['operationId'],
+        Material: p['materialId'],
+        RequirementQuantity: p['newQuantity'],
+        RequirementDate: p['requirementDate'],
+        ChangeReason: p['reason']
+      }
+    }),
+    apply: (p, _t, ctx) => setState(ctx.tenantId, p['componentId'] as string, 'quantity_changed', ctx, {
+      quantity: p['newQuantity'],
+      requirementDate: p['requirementDate'],
+      quantityChangeReason: p['reason'],
+      status: 'CHANGED'
+    })
+  },
+  {
+    id: 'material.return',
+    label: 'Return Material (Goods Return)',
+    description: 'Post a SAP material return document using the Material Document API, reversing unused outage stock back from the maintenance order/reservation context.',
+    screen: '/materials', businessCapability: 'Materials Management', actionClass: 'CONTROLLED', riskClass: 'MEDIUM',
+    allowedRoles: ['warehouse_lead', 'material_planner'], approverRoles: ['material_planner', 'sto_manager'],
+    requiresReason: true, sod: true, targetObjectType: 'GoodsMovementProxy', targetSystem: 'SAP_S4',
+    connectorId: 'sap-mm-matdoc', connectorOperation: 'create',
+    fields: [
+      { name: 'reservation', label: 'Reservation', type: 'text' },
+      { name: 'orderId', label: 'Maintenance order', type: 'lookup', lookupCategory: 'orders', required: true },
+      { name: 'materialId', label: 'Material', type: 'lookup', lookupCategory: 'materials', required: true },
+      { name: 'quantity', label: 'Return quantity', type: 'number', required: true },
+      { name: 'plantId', label: 'Plant', type: 'lookup', lookupCategory: 'plants', required: true },
+      { name: 'storageLocation', label: 'Storage location', type: 'lookup', lookupCategory: 'storageLocations', dependsOn: ['plantId'], required: true },
+      { name: 'reason', label: 'Reason', type: 'textarea', required: true }
+    ],
+    validate: (p) => {
+      const out = req(p, ['orderId', 'materialId', 'quantity', 'plantId', 'storageLocation', 'reason']);
+      if (Number(p['quantity']) <= 0) out.push({ severity: 'ERROR', field: 'quantity', message: 'Return quantity must be positive.' });
+      return out;
+    },
+    buildPayload: (p) => ({
+      apiService: 'API_MATERIAL_DOCUMENT_SRV',
+      MaterialDocument: {
+        GoodsMovementCode: '03',
+        GoodsMovementType: '262',
+        Material: p['materialId'],
+        QuantityInEntryUnit: p['quantity'],
+        Plant: p['plantId'],
+        StorageLocation: p['storageLocation'],
+        Reservation: p['reservation'],
+        MaintenanceOrder: p['orderId'],
+        Reason: p['reason']
+      }
+    }),
+    apply: (p, txn, ctx) => {
+      const db = getDb();
+      putObject(db, {
+        id: `GM-${txn.targetDocumentNumber ?? txn.transactionId}`, tenantId: ctx.tenantId, objectType: 'GoodsMovementProxy',
+        sourceSystem: 'SAP_S4', sourceMode: 'SIMULATOR', sourceObject: 'MaterialDocument',
+        sourceReference: txn.targetDocumentNumber ?? 'PENDING', lifecycleState: 'returned', approvalState: 'APPROVED',
+        riskClass: 'MEDIUM', owner: ctx.user.id, sourceFreshness: nowIso(),
+        createdBy: ctx.user.id, createdAt: nowIso(), updatedBy: ctx.user.id, updatedAt: nowIso(), correlationId: txn.correlationId,
+        data: { ...p, goodsMovementType: '262', desc: `Return ${p['materialId']} x ${p['quantity']} for ${p['orderId']}` }
+      });
+    }
+  },
+  {
     id: 'material.substitute',
     label: 'Approve Material Substitute',
     description: 'Create a governed substitute decision for an unavailable material, preserving SAP material master and engineering approval traceability.',
@@ -630,12 +1042,28 @@ export const ACTIONS: ActionDefinition[] = [
     allowedRoles: ['work_package_owner', 'maintenance_planner', 'hse_safety_reviewer', 'maintenance_supervisor'], approverRoles: ['wcm_authority'],
     requiresReason: true, sod: true, targetObjectType: 'SafetyReadinessException', targetSystem: 'STO_PLATFORM',
     fields: [
-      { name: 'workPackageId', label: 'Work package', type: 'lookup', lookupCategory: 'workPackages', required: true },
+      { name: 'workPackageId', label: 'Work package', type: 'lookup', lookupCategory: 'workPackages' },
+      { name: 'orderId', label: 'SAP maintenance order', type: 'lookup', lookupCategory: 'orders' },
       { name: 'preplanType', label: 'Preplan type', type: 'text', required: true },
       { name: 'requiredBy', label: 'Required by', type: 'date', required: true },
       { name: 'reason', label: 'Reason / hazard context', type: 'textarea', required: true }
     ],
-    validate: (p) => req(p, ['workPackageId', 'preplanType', 'requiredBy', 'reason']),
+    validate: (p) => {
+      const out = req(p, ['preplanType', 'requiredBy', 'reason']);
+      if (!p['workPackageId'] && !p['orderId']) out.push({ severity: 'ERROR', field: 'workPackageId', message: 'Provide a work package or SAP maintenance order to anchor the WCM preplan.' });
+      return out;
+    },
+    buildPayload: (p) => ({
+      integrationPattern: 'SAP_WCM_PREPLAN_REQUEST',
+      target: 'SAP WCM or ePTW via BTP Integration Suite wrapper',
+      WorkClearancePreplanRequest: {
+        MaintenanceOrder: p['orderId'],
+        WorkPackage: p['workPackageId'],
+        PreplanType: p['preplanType'],
+        RequiredBy: p['requiredBy'],
+        HazardContext: p['reason']
+      }
+    }),
     apply: (p, txn, ctx) => {
       const db = getDb();
       putObject(db, {
@@ -644,7 +1072,7 @@ export const ACTIONS: ActionDefinition[] = [
         lifecycleState: 'routed_to_wcm', approvalState: 'APPROVED', riskClass: 'SAFETY_CRITICAL', owner: 'u-wcm',
         sourceFreshness: nowIso(), createdBy: ctx.user.id, createdAt: nowIso(), updatedBy: ctx.user.id, updatedAt: nowIso(),
         correlationId: txn.correlationId,
-        data: { wpId: p['workPackageId'], preplanType: p['preplanType'], requiredBy: p['requiredBy'], reason: p['reason'], plantId: 'P100' }
+        data: { wpId: p['workPackageId'], orderId: p['orderId'], preplanType: p['preplanType'], requiredBy: p['requiredBy'], reason: p['reason'], plantId: 'P100' }
       });
     }
   },

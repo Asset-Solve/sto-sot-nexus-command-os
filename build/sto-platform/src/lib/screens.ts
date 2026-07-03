@@ -26,7 +26,7 @@ export const SCREENS: Record<string, WorkbenchDef> = {
       { objectType: 'MaintenanceNotificationProxy', label: 'SAP Notifications', columns: [{ key: 'desc', label: 'Description' }, { key: 'equipmentId', label: 'Equipment' }, { key: 'priority', label: 'Priority' }] },
       { objectType: 'APMRecommendationMirror', label: 'APM Recommendations', columns: [{ key: 'title', label: 'Title' }, { key: 'healthScore', label: 'Health' }, { key: 'confidence', label: 'Confidence' }] }
     ],
-    actionIds: ['scope.submit', 'scope.decide', 'scope.freeze', 'scope.create_notification']
+    actionIds: ['scope.submit', 'scope.decide', 'scope.freeze', 'scope.create_notification', 'scope.create_order']
   },
   'work-packages': {
     title: 'Work Package Studio',
@@ -34,9 +34,11 @@ export const SCREENS: Record<string, WorkbenchDef> = {
     tabs: [
       { objectType: 'WorkPackage', label: 'Work Packages', columns: [{ key: 'title', label: 'Title' }, { key: 'orderId', label: 'SAP Order' }, { key: 'p6ActivityId', label: 'P6 Activity' }, { key: 'readiness', label: 'Readiness' }] },
       { objectType: 'MaintenanceOrderProxy', label: 'SAP Orders', columns: [{ key: 'desc', label: 'Description' }, { key: 'notifId', label: 'Notification' }, { key: 'wbsId', label: 'WBS' }, { key: 'status', label: 'SAP Status' }] },
-      { objectType: 'MaintenanceOperationProxy', label: 'Operations', columns: [{ key: 'orderId', label: 'Order' }, { key: 'desc', label: 'Description' }, { key: 'workCenterId', label: 'Work Center' }, { key: 'hours', label: 'Plan Hrs' }, { key: 'status', label: 'SAP Status' }] }
+      { objectType: 'MaintenanceOperationProxy', label: 'Operations', columns: [{ key: 'orderId', label: 'Order' }, { key: 'desc', label: 'Description' }, { key: 'workCenterId', label: 'Work Center' }, { key: 'hours', label: 'Plan Hrs' }, { key: 'status', label: 'SAP Status' }] },
+      { objectType: 'MaintenanceOrderComponentProxy', label: 'Order Components', columns: [{ key: 'orderId', label: 'Order' }, { key: 'operationId', label: 'Operation' }, { key: 'materialId', label: 'Material' }, { key: 'quantity', label: 'Qty' }, { key: 'status', label: 'SAP Status' }] },
+      { objectType: 'AttachmentProxy', label: 'SAP Attachments', columns: [{ key: 'orderId', label: 'Order' }, { key: 'fileName', label: 'File' }, { key: 'attachmentType', label: 'Type' }, { key: 'desc', label: 'Description' }] }
     ],
-    actionIds: ['wp.validate', 'wp.release']
+    actionIds: ['wp.validate', 'wp.release', 'scope.create_order', 'order.add_operation', 'order.add_component', 'order.change_component_qty', 'order.set_status', 'order.attach_evidence']
   },
   'fel-readiness': {
     title: 'FEL Readiness & Gate Control',
@@ -67,20 +69,22 @@ export const SCREENS: Record<string, WorkbenchDef> = {
       { objectType: 'ScheduleActivityMirror', label: 'P6 Activities', columns: [{ key: 'name', label: 'Activity' }, { key: 'start', label: 'Start' }, { key: 'finish', label: 'Finish' }, { key: 'pct', label: '%' }, { key: 'critical', label: 'Critical' }, { key: 'float', label: 'Float d' }] },
       { objectType: 'Constraint', label: 'Constraints', columns: [{ key: 'title', label: 'Constraint' }, { key: 'type', label: 'Type' }, { key: 'activityId', label: 'Activity' }, { key: 'needBy', label: 'Need by' }] }
     ],
-    actionIds: ['constraint.create', 'schedule.rebaseline']
+    actionIds: ['constraint.create', 'constraint.close', 'schedule.rebaseline', 'order.reschedule']
   },
   materials: {
     title: 'Materials, Kits, Tools & Logistics',
     purpose: 'Demand → reservation → PR/PO → staging → issue/return with shortage-to-critical-path linkage. SAP APIs: reservation, PR, material document.',
     tabs: [
       { objectType: 'MaterialDemand', label: 'Demands', columns: [{ key: 'materialId', label: 'Material' }, { key: 'wpId', label: 'Work Pkg' }, { key: 'qty', label: 'Qty' }, { key: 'needBy', label: 'Need by' }, { key: 'reservation', label: 'SAP Resvn' }] },
-      { objectType: 'ReservationProxy', label: 'SAP Reservations', columns: [{ key: 'desc', label: 'Description' }, { key: 'materialId', label: 'Material' }, { key: 'quantity', label: 'Qty' }] },
+      { objectType: 'ReservationProxy', label: 'SAP Reservations', columns: [{ key: 'desc', label: 'Description' }, { key: 'materialId', label: 'Material' }, { key: 'quantity', label: 'Qty' }, { key: 'reservationItem', label: 'Item' }] },
+      { objectType: 'MaintenanceOrderComponentProxy', label: 'SAP Order Components', columns: [{ key: 'orderId', label: 'Order' }, { key: 'operationId', label: 'Operation' }, { key: 'materialId', label: 'Material' }, { key: 'quantity', label: 'Qty' }, { key: 'requirementDate', label: 'Need by' }] },
+      { objectType: 'GoodsMovementProxy', label: 'Goods Movements', columns: [{ key: 'goodsMovementType', label: 'MvT' }, { key: 'materialId', label: 'Material' }, { key: 'quantity', label: 'Qty' }, { key: 'orderId', label: 'Order' }] },
       { objectType: 'MaterialMirror', label: 'Material Master', columns: [{ key: 'desc', label: 'Description' }, { key: 'stock', label: 'Stock' }, { key: 'uom', label: 'UoM' }, { key: 'sloc', label: 'SLoc' }] },
       { objectType: 'StagingKit', label: 'Staging Kits', columns: [{ key: 'wpId', label: 'Work Pkg' }, { key: 'kitStatus', label: 'Status' }, { key: 'shortageCount', label: 'Shortages' }, { key: 'laydownZone', label: 'Laydown' }] },
       { objectType: 'ToolDemand', label: 'Tools & Equipment', columns: [{ key: 'toolClass', label: 'Tool' }, { key: 'wpId', label: 'Work Pkg' }, { key: 'needBy', label: 'Need By' }, { key: 'availability', label: 'Availability' }] },
       { objectType: 'ExpeditingCase', label: 'Expediting', columns: [{ key: 'demandId', label: 'Demand' }, { key: 'vendorId', label: 'Vendor' }, { key: 'promiseDate', label: 'Promise' }, { key: 'note', label: 'Note' }] }
     ],
-    actionIds: ['material.reserve', 'material.request_pr', 'material.issue', 'material.substitute', 'tool.reserve']
+    actionIds: ['material.reserve', 'reservation.change_quantity', 'material.request_pr', 'material.issue', 'material.return', 'material.substitute', 'tool.reserve', 'order.change_component_qty']
   },
   permits: {
     title: 'WCM, Permits, Isolation & LOTO',
@@ -138,11 +142,12 @@ export const SCREENS: Record<string, WorkbenchDef> = {
     tabs: [
       { objectType: 'DailyExecutionPlan', label: 'Daily Plans', columns: [{ key: 'shift', label: 'Shift' }, { key: 'planDate', label: 'Date' }, { key: 'crewCount', label: 'Crews' }, { key: 'criticalPathJobs', label: 'Critical Jobs' }] },
       { objectType: 'CrewAssignment', label: 'Crew Assignments', columns: [{ key: 'crewId', label: 'Crew' }, { key: 'wpId', label: 'Work Pkg' }, { key: 'zone', label: 'Zone' }, { key: 'supervisorId', label: 'Supervisor' }] },
+      { objectType: 'DispatchPacket', label: 'SSAM Dispatch Packets', columns: [{ key: 'wpId', label: 'Work Pkg' }, { key: 'crewId', label: 'Crew' }, { key: 'deviceGroup', label: 'Device Group' }, { key: 'packetSizeMb', label: 'MB' }] },
       { objectType: 'MobileScheduleUpdate', label: 'Mobile Sync', columns: [{ key: 'deviceId', label: 'Device' }, { key: 'workerId', label: 'Worker' }, { key: 'syncStatus', label: 'Sync' }, { key: 'lastSync', label: 'Last Sync' }] },
       { objectType: 'LocationRiskAlert', label: 'Location Alerts', columns: [{ key: 'zone', label: 'Zone' }, { key: 'alertType', label: 'Alert' }, { key: 'workerCount', label: 'Workers' }, { key: 'recommendedAction', label: 'Recommended Action' }] },
       { objectType: 'ZoneOccupancy', label: 'Zone Occupancy', columns: [{ key: 'zone', label: 'Zone' }, { key: 'workerCount', label: 'Workers' }, { key: 'permitLimit', label: 'Limit' }, { key: 'riskScore', label: 'Risk' }] }
     ],
-    actionIds: ['plan.publish', 'progress.supervisor_accept', 'safety.acknowledge_location_alert']
+    actionIds: ['plan.publish', 'mobile.dispatch_package', 'progress.supervisor_accept', 'safety.acknowledge_location_alert']
   },
   'labor-time': {
     title: 'Time, Labor, CATS & Payroll',

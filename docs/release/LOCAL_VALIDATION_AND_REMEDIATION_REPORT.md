@@ -150,3 +150,58 @@ Local validation links:
 - `http://127.0.0.1:3401/contract-performance`
 - `http://127.0.0.1:3401/cost-reconciliation`
 - `http://127.0.0.1:3401/analytics`
+
+---
+
+## v1.3 — SAP-Native Actionability Remediation (2026-07-02)
+
+**Critical flaw addressed:** workbenches had rich SAP-like read models but some screens still felt like dashboards because rows did not expose enough native SAP business triggers. Users would still need SAP GUI/Fiori for common STO execution actions such as order operations/components, material quantity changes, permit preplanning, order status changes, evidence attachment and mobile dispatch.
+
+Delivered:
+
+| Area | Result |
+| --- | --- |
+| Workbench action visibility | Row actions now show the state-valid SAP action even when the current persona cannot execute it, disabled with required-role tooltip, so the screen explains the process handoff instead of hiding it. |
+| SAP EAM order actions | Added governed `scope.create_order`, `order.add_operation`, `order.add_component`, `order.change_component_qty`, `order.reschedule`, `order.set_status`, `order.attach_evidence`. |
+| SAP MM/material actions | Added governed `reservation.change_quantity` and `material.return`; retained reservation create, PR request and goods issue. |
+| WCM/ePTW safety path | `permit.request_preplan` now anchors to work package and/or SAP maintenance order, produces a WCM/ePTW preplan payload, and still blocks direct permit status writes. |
+| SSAM/FSM execution path | Released work packages can be staged to mobile execution via `mobile.dispatch_package`, with visible staged-not-posted state until connector certification. |
+| Seed/read models | Added SAP order component rows, a reservation read-model row and a goods movement row so Work Packages and Materials have actionable SAP objects. |
+| Process backbone | Object-state matrix now routes SAP order, operation, component, reservation, WCM and mobile rows into row actions and My Work queues. |
+| Documentation | Added `docs/integration/SAP_NATIVE_ACTIONABILITY_MAP.md` with screen/action/object/connector/API mapping. |
+| Regression tests | Added `tests/sap-actionability.test.ts`; suite now has 50 passing tests. |
+
+SAP native-ready connector grounding:
+
+| Business action | Connector/API path |
+| --- | --- |
+| Create/update maintenance order, operation, component, order status/date | `sap-eam-order` / `API_MAINTENANCEORDER_0002` |
+| Create/update reservation | `sap-mm-reservation` / `API_RESERVATION_DOCUMENT_SRV` |
+| Goods issue/return | `sap-mm-matdoc` / `API_MATERIAL_DOCUMENT_SRV` |
+| Attach evidence to order | `sap-dms` / `API_CV_ATTACHMENT_SRV` |
+| WCM/ePTW preplan/correction package | `sap-wcm` or `eptw` via Integration Suite wrapper, fail-closed for direct status writes |
+| Mobile dispatch package | `sap-ssam-mobile` / `SSAM_MOBILE_SYNC` staged package; SAP FSM connector-ready alternative |
+
+Validation executed:
+
+| Check | Result |
+| --- | --- |
+| `npm audit --audit-level=moderate` | passed, 0 vulnerabilities |
+| `npm run validate` | passed |
+| Typecheck | passed (`next typegen && tsc --noEmit`) |
+| Vitest | passed, 4 files, 50/50 tests |
+| Production build | passed, Next.js 16.2.10 |
+| HTTP route smoke | `/command-center`, `/work-packages`, `/materials`, `/control-of-work`, `/execution-map`, `/my-work`, `/integration-hub`, `/api/process`, `/api/actions` returned 200 on port 3401 |
+| API action smoke | `/api/process` and `/api/actions` contain `scope.create_order`, `order.add_component`, `order.change_component_qty`, `reservation.change_quantity`, `material.return`, `mobile.dispatch_package` |
+| Governed HTTP write smoke | Material planner submitted `reservation.change_quantity`; maintenance supervisor approved; simulator returned SAP reservation document `0002100001`; read-back reconciliation `MATCHED` |
+| Browser render smoke | Playwright rendered `/materials` and `/work-packages`; source badges and actionability content present; no console errors |
+
+Local validation links:
+
+- `http://127.0.0.1:3401/command-center`
+- `http://127.0.0.1:3401/work-packages`
+- `http://127.0.0.1:3401/materials`
+- `http://127.0.0.1:3401/control-of-work`
+- `http://127.0.0.1:3401/execution-map`
+- `http://127.0.0.1:3401/my-work`
+- `http://127.0.0.1:3401/api/process`

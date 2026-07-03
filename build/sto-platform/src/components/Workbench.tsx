@@ -95,12 +95,13 @@ export default function Workbench({ def }: { def: WorkbenchDef }) {
 
   const roleOk = (a: ActionMeta) => a.allowedRoles.includes('*') || a.allowedRoles.includes(role) || role === 'tenant_admin';
 
-  /** governed actions valid for this object's current state + my role */
-  function rowActions(item: any): { action: ActionMeta; sa: StateAction }[] {
+  /** governed actions valid for this object's current state; disabled when my role is not authorized */
+  function rowActions(item: any): { action: ActionMeta; sa: StateAction; allowed: boolean }[] {
     return stateActions
       .filter((sa) => sa.objectType === item.objectType && sa.states.includes(item.lifecycleState))
       .map((sa) => ({ sa, action: allActions.find((a) => a.id === sa.actionId)! }))
-      .filter((x) => x.action && roleOk(x.action));
+      .filter((x) => x.action)
+      .map((x) => ({ ...x, allowed: roleOk(x.action) }));
   }
 
   function startAction(action: ActionMeta, item: any, sa?: StateAction) {
@@ -108,7 +109,7 @@ export default function Workbench({ def }: { def: WorkbenchDef }) {
     setOpenAction({ action, initial: buildPrefill(item, sa?.prefill, action.fields) });
   }
 
-  const selectedActions = selected ? rowActions(selected) : [];
+  const selectedActions = selected ? rowActions(selected).filter((x) => x.allowed) : [];
   const selectedBlocked = selected
     ? stateActions.filter((sa) => sa.objectType === selected.objectType && sa.states.includes(selected.lifecycleState))
         .map((sa) => ({ sa, action: allActions.find((a) => a.id === sa.actionId)! }))
@@ -168,8 +169,14 @@ export default function Workbench({ def }: { def: WorkbenchDef }) {
                         <td><SourceBadge system={o.sourceSystem} mode={o.sourceMode} /></td>
                         <td onClick={(e) => e.stopPropagation()}>
                           <span className="rowact">
-                            {acts.slice(0, 2).map(({ action, sa }) => (
-                              <button key={action.id} className="btn primary" title={sa.hint} onClick={() => startAction(action, o, sa)}>
+                            {acts.slice(0, 3).map(({ action, sa, allowed }) => (
+                              <button
+                                key={action.id}
+                                className={`btn ${allowed ? 'primary' : 'ghost'}`}
+                                disabled={!allowed}
+                                title={allowed ? `${sa.hint} · ${action.targetSystem}` : `${sa.hint} · requires role: ${action.allowedRoles.join(', ')}`}
+                                onClick={() => startAction(action, o, sa)}
+                              >
                                 {action.label.split(' ').slice(0, 2).join(' ')}
                               </button>
                             ))}
