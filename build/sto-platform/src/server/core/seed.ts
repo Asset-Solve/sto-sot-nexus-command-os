@@ -417,6 +417,172 @@ export function ensureSeeded(): Db {
     title: 'WCM read model sync latency > SLO (42min vs 5min)', connectorId: 'sap-wcm', severity: 'HIGH', servicenowRef: 'INC0048821'
   }, { riskClass: 'HIGH' });
 
+  // ---------------- Nexus enhancement read models: mobility, FEL, e-workpacks, RTLS, commercial analytics ----------------
+  bo(db, T1, 'WorkerReadinessProfile', 'WRP-W1001', 'STO_PLATFORM', 'WorkerReadinessProfile', 'WRP-W1001', 'ready', 'u-crew', {
+    workerId: 'W-1001', workerName: 'Jon Silva', craft: 'Boilermaker', readinessPct: 96, blockingItems: 0,
+    defaultCrewId: 'CREW-M1', assignedWbs: ['WBS-TA26-01'], assignedCostCenters: ['CC-3100'], mobileReady: true,
+    eventId: 'EV-1001', plantId: 'P100'
+  });
+  bo(db, T1, 'WorkerReadinessProfile', 'WRP-W2001', 'STO_PLATFORM', 'WorkerReadinessProfile', 'WRP-W2001', 'blocked', 'u-contr', {
+    workerId: 'W-2001', workerName: 'Dev Kumar', craft: 'Welder', readinessPct: 62, blockingItems: 3,
+    defaultCrewId: 'CREW-C1', assignedWbs: ['WBS-TA26-02'], assignedCostCenters: ['CC-3100'], mobileReady: false,
+    eventId: 'EV-1001', plantId: 'P100'
+  }, { riskClass: 'HIGH' });
+  bo(db, T1, 'ContractorOnboardingPacket', 'COP-W2001', 'CONTRACTOR_PORTAL', 'OnboardingPacket', 'COP-W2001', 'missing_evidence', 'u-contr', {
+    workerId: 'W-2001', workerName: 'Dev Kumar', vendorId: 'V-9001', vendor: 'MechCo Industrial Services',
+    missingEvidence: 'Respirator fit-test certificate; confined-space refresher; badge photo verification',
+    accessReady: false, dueDate: '2026-07-03', eventId: 'EV-1001', plantId: 'P100'
+  }, { riskClass: 'HIGH' });
+  bo(db, T1, 'TrainingCredential', 'TC-W2001-HOT', 'LMS', 'TrainingCredential', 'W2001-HOTWORK', 'expired', 'u-hse', {
+    workerId: 'W-2001', credential: 'HOT_WORK_OBSERVER', credentialName: 'Hot Work Observer', expires: '2026-06-30',
+    blockingWork: 'PTW-88103 / WP-1002', sourceConnector: 'lms-training', eventId: 'EV-1001', plantId: 'P100'
+  }, { riskClass: 'SAFETY_CRITICAL' });
+  bo(db, T1, 'AccessBadge', 'BADGE-W2001', 'IAM_ACCESS', 'AccessBadge', 'BADGE-W2001', 'pending', 'u-contr', {
+    workerId: 'W-2001', badgeId: 'B-783344', accessZones: ['CDU-North'], accessReady: false, reason: 'Credential block', eventId: 'EV-1001', plantId: 'P100'
+  }, { riskClass: 'HIGH' });
+  bo(db, T1, 'MobileDeviceAssignment', 'MDA-W1001', 'SAP_SSAM', 'MobileDeviceAssignment', 'SSAM-DVC-0188', 'synced', 'u-tech', {
+    workerId: 'W-1001', deviceId: 'SSAM-DVC-0188', appProfile: 'TA_FIELD_EXECUTION', syncStatus: 'FRESH', lastSync: nowIso(), eventId: 'EV-1001', plantId: 'P100'
+  }, { sourceMode: 'CACHE' });
+  bo(db, T1, 'MobileDeviceAssignment', 'MDA-W2001', 'SAP_SSAM', 'MobileDeviceAssignment', 'SSAM-DVC-0222', 'sync_blocked', 'u-contr', {
+    workerId: 'W-2001', deviceId: 'SSAM-DVC-0222', appProfile: 'CONTRACTOR_WELDER', syncStatus: 'BLOCKED_BY_CREDENTIAL', lastSync: '2026-07-01T13:00:00Z', eventId: 'EV-1001', plantId: 'P100'
+  }, { riskClass: 'HIGH', sourceMode: 'CACHE' });
+
+  bo(db, T1, 'FELGate', 'FEL-EV1-READY', 'STO_PLATFORM', 'FELGate', 'FEL-EV1-READY', 'blocked', 'u-sto', {
+    gateName: 'Execution Readiness Gate', eventId: 'EV-1001', readinessPct: 91, blockerCount: 4, nextGateDate: '2026-07-03',
+    sourceEvidence: ['DP-SCHED', 'DP-PERMIT', 'CF-EV1-07'], gateOwnerRole: 'sto_manager'
+  }, { riskClass: 'HIGH' });
+  bo(db, T1, 'ReadinessScore', 'RS-MATERIALS', 'STO_PLATFORM', 'ReadinessScore', 'RS-MATERIALS', 'at_risk', 'u-matl', {
+    area: 'Materials & Kits', score: 78, trend: 'DOWN', drivers: ['MAT-4714 zero stock', 'KIT-WP1001 partial', 'TD-CRANE-01 unavailable'],
+    eventId: 'EV-1001', plantId: 'P100'
+  }, { riskClass: 'HIGH' });
+  bo(db, T1, 'ReadinessException', 'RE-MAT-002', 'STO_PLATFORM', 'ReadinessException', 'RE-MAT-002', 'open', 'u-matl', {
+    title: 'Stud bolts MAT-4714 unavailable for tray torque-up', category: 'MATERIAL', ownerRole: 'material_planner', due: '2026-07-03',
+    sourceObjectId: 'MD-002', requiredEvidence: 'SAP reservation/PR or approved substitute', eventId: 'EV-1001', plantId: 'P100'
+  }, { riskClass: 'HIGH' });
+  bo(db, T1, 'ReadinessException', 'RE-DOC-001', 'STO_PLATFORM', 'ReadinessException', 'RE-DOC-001', 'open', 'u-wpo', {
+    title: 'E-104A e-workpack drawing revision stale', category: 'DOCUMENT', ownerRole: 'work_package_owner', due: '2026-07-02',
+    sourceObjectId: 'DB-WP1002', requiredEvidence: 'Approved latest IFC bundle in DMS', eventId: 'EV-1001', plantId: 'P100'
+  }, { riskClass: 'HIGH' });
+  bo(db, T1, 'GateBlocker', 'GB-PERMIT-001', 'STO_PLATFORM', 'GateBlocker', 'GB-PERMIT-001', 'open', 'u-hse', {
+    title: 'PTW-88103 gas-test expired before E-104A hot work', stage: 'WCM readiness', sourceObjectId: 'PTW-88103',
+    requiredEvidence: 'Fresh gas-test evidence and WCM authority correction', eventId: 'EV-1001', plantId: 'P100'
+  }, { riskClass: 'SAFETY_CRITICAL' });
+
+  bo(db, T1, 'ElectronicWorkpack', 'EWP-WP1002', 'STO_PLATFORM', 'ElectronicWorkpack', 'EWP-WP1002', 'in_review', 'u-wpo', {
+    title: 'E-104A Digital Workpack', wpId: 'WP-1002', readinessPct: 72, sectionCount: 9, missingSections: ['Material kit', 'Gas-test evidence', 'Inspection hold points'],
+    eventId: 'EV-1001', plantId: 'P100'
+  }, { riskClass: 'HIGH' });
+  bo(db, T1, 'WorkpackSection', 'WPS-WP1002-MAT', 'STO_PLATFORM', 'WorkpackSection', 'WPS-WP1002-MAT', 'incomplete', 'u-wpo', {
+    wpId: 'WP-1002', sectionName: 'Materials & Logistics', completenessPct: 60, blocker: 'MAT-4712 staging confirmation pending', eventId: 'EV-1001', plantId: 'P100'
+  });
+  bo(db, T1, 'JobStep', 'JS-WP1002-20', 'STO_PLATFORM', 'JobStep', 'JS-WP1002-20', 'ready', 'u-wpo', {
+    wpId: 'WP-1002', step: 'Retube bundle and hydrotest', operationId: 'OP-4000102-0020', holdPoint: 'IHP-WP1002-HYDRO', eventId: 'EV-1001', plantId: 'P100'
+  });
+  bo(db, T1, 'DocumentBundle', 'DB-WP1002', 'OPENTEXT_DMS', 'DocumentBundle', 'DMS-IFC-4412', 'stale', 'u-wpo', {
+    wpId: 'WP-1002', revision: 'B', latestRevision: 'C', documentCount: 18, missingApprovals: ['Engineering'], eventId: 'EV-1001', plantId: 'P100'
+  }, { riskClass: 'HIGH', sourceMode: 'CACHE' });
+  bo(db, T1, 'PermitRequirement', 'PRQ-WP1002-HOT', 'STO_PLATFORM', 'PermitRequirement', 'PRQ-WP1002-HOT', 'missing', 'u-hse', {
+    wpId: 'WP-1002', permitType: 'Hot Work', requiredBy: '2026-07-03', sourcePermitId: 'PTW-88103', eventId: 'EV-1001', plantId: 'P100'
+  }, { riskClass: 'SAFETY_CRITICAL' });
+  bo(db, T1, 'InspectionHoldPoint', 'IHP-WP1002-HYDRO', 'STO_PLATFORM', 'InspectionHoldPoint', 'IHP-WP1002-HYDRO', 'open', 'u-qa', {
+    wpId: 'WP-1002', method: 'Hydrotest witness', requiredEvidence: 'QA signoff + calibrated gauge cert', eventId: 'EV-1001', plantId: 'P100'
+  });
+
+  bo(db, T1, 'StagingKit', 'KIT-WP1001', 'STO_PLATFORM', 'StagingKit', 'KIT-WP1001', 'partial', 'u-wh', {
+    wpId: 'WP-1001', kitStatus: 'PARTIAL', shortageCount: 1, laydownZone: 'LYD-CDU-N-03', nextAction: 'Reserve or substitute MAT-4714', eventId: 'EV-1001', plantId: 'P100'
+  }, { riskClass: 'HIGH' });
+  bo(db, T1, 'ToolDemand', 'TD-CRANE-01', 'STO_PLATFORM', 'ToolDemand', 'TD-CRANE-01', 'unavailable', 'u-matl', {
+    toolClass: '250T crawler crane', wpId: 'WP-1002', needBy: '2026-07-04', availability: 'CONFLICTED', p6ActivityId: 'P6-A1020',
+    eventId: 'EV-1001', plantId: 'P100'
+  }, { riskClass: 'HIGH' });
+  bo(db, T1, 'EquipmentRental', 'ER-CRANE-01', 'CONTRACTOR_PORTAL', 'EquipmentRental', 'ER-CRANE-01', 'requested', 'u-contr', {
+    toolDemandId: 'TD-CRANE-01', vendorId: 'V-9001', requestedFrom: '2026-07-04', requestedTo: '2026-07-06', dayRateUSD: 18000,
+    eventId: 'EV-1001', plantId: 'P100'
+  }, { riskClass: 'FINANCE_CRITICAL' });
+  bo(db, T1, 'ShortageCase', 'SHC-MD002', 'STO_PLATFORM', 'ShortageCase', 'SHC-MD002', 'open', 'u-matl', {
+    demandId: 'MD-002', materialId: 'MAT-4714', criticalPathImpactDays: 1.2, recoveryOptions: ['Air freight', 'Substitute MAT-4711 kit', 'Borrow from P200'],
+    eventId: 'EV-1001', plantId: 'P100'
+  }, { riskClass: 'HIGH' });
+
+  bo(db, T1, 'IsolationPlan', 'ISO-WP1002', 'SAP_WCM', 'IsolationPlan', 'WCM-ISO-1002', 'draft', 'u-wcm', {
+    wpId: 'WP-1002', isolationType: 'Electrical + process blinds', energyPoints: 18, wcmReference: 'WCM-ISO-1002',
+    eventId: 'EV-1001', plantId: 'P100'
+  }, { riskClass: 'SAFETY_CRITICAL', sourceMode: 'CACHE' });
+  bo(db, T1, 'LOTOPackage', 'LOTO-WP1002', 'SAP_WCM', 'LOTOPackage', 'LOTO-1002', 'pending_verification', 'u-wcm', {
+    wpId: 'WP-1002', lockCount: 18, verification: 'PENDING_OPERATIONS_WALKDOWN', eventId: 'EV-1001', plantId: 'P100'
+  }, { riskClass: 'SAFETY_CRITICAL', sourceMode: 'CACHE' });
+  bo(db, T1, 'BlindListItem', 'BLIND-301', 'SAP_WCM', 'BlindListItem', 'BLIND-301', 'missing_verification', 'u-wcm', {
+    wpId: 'WP-1002', lineNumber: 'CDU-E104A-12IN-STEAM', requiredPosition: 'BLIND_IN', verifiedBy: '', eventId: 'EV-1001', plantId: 'P100'
+  }, { riskClass: 'SAFETY_CRITICAL', sourceMode: 'CACHE' });
+  bo(db, T1, 'GasTestEvidence', 'GAS-PTW88103', 'EPTW', 'GasTest', 'GAS-88103-01', 'expired', 'u-hse', {
+    permitId: 'PTW-88103', reading: 'LEL 0%, O2 20.8%, H2S 0ppm', validUntil: '2026-07-01T18:00:00Z',
+    eventId: 'EV-1001', plantId: 'P100'
+  }, { riskClass: 'SAFETY_CRITICAL', sourceMode: 'CACHE' });
+
+  bo(db, T1, 'DailyExecutionPlan', 'DEP-20260702-D', 'STO_PLATFORM', 'DailyExecutionPlan', 'DEP-20260702-D', 'draft', 'u-super', {
+    shift: 'Day 07-02', planDate: '2026-07-02', crewCount: 12, criticalPathJobs: 5, blockers: [], eventId: 'EV-1001', plantId: 'P100'
+  }, { riskClass: 'HIGH' });
+  bo(db, T1, 'CrewAssignment', 'CA-CREWM1-WP1001', 'STO_PLATFORM', 'CrewAssignment', 'CA-CREWM1-WP1001', 'scheduled', 'u-super', {
+    crewId: 'CREW-M1', wpId: 'WP-1001', zone: 'CDU-North', supervisorId: 'W-1003', start: '2026-07-02T06:00:00Z', eventId: 'EV-1001', plantId: 'P100'
+  });
+  bo(db, T1, 'DispatchPacket', 'DP-WP1001-D', 'SAP_SSAM', 'MobileDispatchPacket', 'SSAM-DP-1001', 'ready', 'u-super', {
+    wpId: 'WP-1001', crewId: 'CREW-M1', deviceGroup: 'TA_FIELD_EXECUTION', packetSizeMb: 48, eventId: 'EV-1001', plantId: 'P100'
+  }, { sourceMode: 'CACHE' });
+  bo(db, T1, 'MobileScheduleUpdate', 'MSU-W1001-01', 'SAP_SSAM', 'MobileScheduleUpdate', 'SSAM-SYNC-881', 'pending_sync', 'u-tech', {
+    workerId: 'W-1001', deviceId: 'SSAM-DVC-0188', syncStatus: 'PENDING_UPLOAD', lastSync: '2026-07-02T11:35:00Z',
+    eventId: 'EV-1001', plantId: 'P100'
+  }, { sourceMode: 'CACHE' });
+  bo(db, T1, 'ProgressUpdate', 'PU-OP40001010020', 'STO_PLATFORM', 'ProgressUpdate', 'PU-OP40001010020', 'submitted', 'u-crew', {
+    operationId: 'OP-4000101-0020', wpId: 'WP-1001', reportedProgressPct: 82, acceptedProgressPct: 78,
+    varianceReason: 'Tray fastener replacement slower than estimate', eventId: 'EV-1001', plantId: 'P100'
+  });
+  bo(db, T1, 'OperationConfirmation', 'OC-4000101-0020', 'SAP_S4', 'MaintOrderConfirmation', 'PENDING', 'ready', 'u-super', {
+    orderId: 'ORD-4000101', operationId: 'OP-4000101-0020', actualHours: 78, finalConfirmation: false, eventId: 'EV-1001', plantId: 'P100'
+  }, { sourceMode: 'CACHE' });
+  bo(db, T1, 'LocationRiskAlert', 'LRA-CDU-N-001', 'RTLS', 'LocationRiskAlert', 'RTLS-ALERT-901', 'open', 'u-hse', {
+    zone: 'CDU-North', alertType: 'Worker density over permit SIMOPS threshold', workerCount: 52, recommendedAction: 'Split hot work crew and validate PTW count',
+    eventId: 'EV-1001', plantId: 'P100'
+  }, { riskClass: 'SAFETY_CRITICAL', sourceMode: 'CACHE' });
+  bo(db, T1, 'ZoneOccupancy', 'ZO-CDU-N', 'RTLS', 'ZoneOccupancy', 'ZO-CDU-N', 'current', 'u-hse', {
+    zone: 'CDU-North', workerCount: 52, permitLimit: 45, riskScore: 88, lastSync: nowIso(), eventId: 'EV-1001', plantId: 'P100'
+  }, { riskClass: 'SAFETY_CRITICAL', sourceMode: 'CACHE' });
+
+  bo(db, T1, 'ContractPerformanceSnapshot', 'CPS-MECHCO', 'SAP_FIELDGLASS', 'ContractPerformanceSnapshot', 'FG-SOW-441', 'current', 'u-contr', {
+    vendorId: 'V-9001', vendor: 'MechCo Industrial Services', burnedMUSD: 6.1, earnedMUSD: 5.6, leakagePct: 8.2,
+    varianceDriver: 'Standby from PTW delay + crane conflict', eventId: 'EV-1001', plantId: 'P100'
+  }, { riskClass: 'FINANCE_CRITICAL', sourceMode: 'CACHE' });
+  bo(db, T1, 'EarnedValueRecord', 'EVR-WP1001', 'PROJECT_CONTROLS', 'EarnedValueRecord', 'EVR-WP1001', 'current', 'u-sched', {
+    wpId: 'WP-1001', plannedValueMUSD: 1.45, earnedValueMUSD: 1.18, actualCostMUSD: 1.34, spi: 0.81, cpi: 0.88, eventId: 'EV-1001', plantId: 'P100'
+  }, { sourceMode: 'CACHE' });
+  bo(db, T1, 'InvoiceScheduleVariance', 'ISV-MECHCO-0701', 'STO_PLATFORM', 'InvoiceScheduleVariance', 'ISV-MECHCO-0701', 'open', 'u-fin', {
+    vendorId: 'V-9001', invoiceNumber: 'INV-MECH-8831', amountUSD: 38400, varianceReason: 'Standby hours while PTW-88103 suspended',
+    p6ActivityId: 'P6-A1020', eventId: 'EV-1001', plantId: 'P100'
+  }, { riskClass: 'FINANCE_CRITICAL' });
+  bo(db, T1, 'AccrualEstimate', 'AE-CRANE-0702', 'STO_PLATFORM', 'AccrualEstimate', 'AE-CRANE-0702', 'proposed', 'u-fin', {
+    costObject: 'WBS-TA26-02', amountUSD: 36000, period: '2026-07', confidence: 0.78, companyCode: '1000',
+    evidenceRefs: ['TD-CRANE-01', 'ER-CRANE-01'], eventId: 'EV-1001', plantId: 'P100'
+  }, { riskClass: 'FINANCE_CRITICAL' });
+  bo(db, T1, 'CostReconciliationCase', 'CRC-MECHCO-01', 'STO_PLATFORM', 'CostReconciliationCase', 'CRC-MECHCO-01', 'open', 'u-fin', {
+    caseType: 'Invoice vs earned value', costObject: 'WBS-TA26-02', varianceUSD: 38400, rootCause: 'Permit delay standby hours not matched to accepted progress',
+    sourceObjects: ['ISV-MECHCO-0701', 'CPS-MECHCO', 'EVR-WP1001'], eventId: 'EV-1001', plantId: 'P100'
+  }, { riskClass: 'FINANCE_CRITICAL' });
+  bo(db, T1, 'ForecastChange', 'FC-MAT-CRANE-01', 'STO_PLATFORM', 'ForecastChange', 'FC-MAT-CRANE-01', 'submitted', 'u-fin', {
+    eventId: 'EV-1001', deltaMUSD: 0.12, driver: 'MAT-4714 expediting + crane rental conflict', impactArea: 'Materials/Commercial',
+    companyCode: '1000', plantId: 'P100'
+  }, { riskClass: 'FINANCE_CRITICAL', approvalState: 'PENDING' });
+  bo(db, T1, 'KPITrace', 'KPI-MAT-READY', 'STO_PLATFORM', 'KPITrace', 'KPI-MAT-READY', 'action_required', 'u-sto', {
+    kpi: 'Critical material readiness', value: '78%', threshold: '95%', sourceObjects: ['MD-002', 'KIT-WP1001', 'SHC-MD002'],
+    drillRoute: '/materials', eventId: 'EV-1001', plantId: 'P100'
+  }, { riskClass: 'HIGH' });
+  bo(db, T1, 'PerformanceInsight', 'PI-COST-LEAKAGE', 'STO_PLATFORM', 'PerformanceInsight', 'PI-COST-LEAKAGE', 'open', 'u-fin', {
+    title: 'MechCo leakage above threshold due to standby and permit delays', category: 'Commercial', impact: '$38.4k disputed / $120k forecast exposure',
+    recommendedAction: 'Open invoice variance reconciliation and gate PTW evidence', sourceObjects: ['ISV-MECHCO-0701', 'PTW-88103'], eventId: 'EV-1001', plantId: 'P100'
+  }, { riskClass: 'FINANCE_CRITICAL' });
+  bo(db, T1, 'ExceptionToAction', 'ETA-PTW-88103', 'STO_PLATFORM', 'ExceptionToAction', 'ETA-PTW-88103', 'open', 'u-hse', {
+    title: 'Resolve PTW-88103 before E-104A hot work restart', targetRoute: '/control-of-work', ownerRole: 'wcm_authority',
+    sourceKpi: 'Permit readiness', sourceObjects: ['PTW-88103', 'GAS-PTW88103'], eventId: 'EV-1001', plantId: 'P100'
+  }, { riskClass: 'SAFETY_CRITICAL' });
+
   // ---------------- tenant 2 (isolation proof) ----------------
   bo(db, T2, 'TurnaroundEvent', 'EV-T2-1', 'STO_PLATFORM', 'TurnaroundEvent', 'EV-T2-1', 'planning', 'u2-admin', {
     name: 'Other Tenant Event', plantId: 'P900', unitId: 'U-X', outageType: 'Outage', start: '2027-01-01', end: '2027-02-01',

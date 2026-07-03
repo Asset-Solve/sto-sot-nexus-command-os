@@ -38,6 +38,28 @@ export const SCREENS: Record<string, WorkbenchDef> = {
     ],
     actionIds: ['wp.validate', 'wp.release']
   },
+  'fel-readiness': {
+    title: 'FEL Readiness & Gate Control',
+    purpose: 'FEL-style readiness control across scope freeze, exception evidence, gate blockers and waiver governance. Gates are local workflow objects with SAP PS/ePPM, P6 and BDC read-model traceability.',
+    tabs: [
+      { objectType: 'FELGate', label: 'FEL Gates', columns: [{ key: 'gateName', label: 'Gate' }, { key: 'eventId', label: 'Event' }, { key: 'readinessPct', label: 'Ready %' }, { key: 'blockerCount', label: 'Blockers' }, { key: 'nextGateDate', label: 'Due' }] },
+      { objectType: 'ReadinessScore', label: 'Readiness Scores', columns: [{ key: 'area', label: 'Area' }, { key: 'score', label: 'Score' }, { key: 'trend', label: 'Trend' }, { key: 'drivers', label: 'Drivers' }] },
+      { objectType: 'ReadinessException', label: 'Exceptions', columns: [{ key: 'title', label: 'Exception' }, { key: 'category', label: 'Category' }, { key: 'ownerRole', label: 'Owner Role' }, { key: 'due', label: 'Due' }] },
+      { objectType: 'GateBlocker', label: 'Gate Blockers', columns: [{ key: 'title', label: 'Blocker' }, { key: 'stage', label: 'Stage' }, { key: 'sourceObjectId', label: 'Source Object' }, { key: 'requiredEvidence', label: 'Evidence' }] }
+    ],
+    actionIds: ['gate.assign_blocker', 'gate.request_waiver', 'readiness.resolve']
+  },
+  'mobility-readiness': {
+    title: 'Mobility, Onboarding & Digital Compliance',
+    purpose: 'Worker onboarding, credentials, access, mobile device assignment, digital training and crew readiness. Sources: SuccessFactors/HCM, LMS, access control, SSAM/FSM and contractor portals.',
+    tabs: [
+      { objectType: 'WorkerReadinessProfile', label: 'Worker Readiness', columns: [{ key: 'workerName', label: 'Worker' }, { key: 'craft', label: 'Craft' }, { key: 'readinessPct', label: 'Ready %' }, { key: 'blockingItems', label: 'Blocks' }, { key: 'defaultCrewId', label: 'Crew' }] },
+      { objectType: 'ContractorOnboardingPacket', label: 'Onboarding Packets', columns: [{ key: 'workerName', label: 'Worker' }, { key: 'vendor', label: 'Vendor' }, { key: 'missingEvidence', label: 'Missing' }, { key: 'accessReady', label: 'Access' }] },
+      { objectType: 'TrainingCredential', label: 'Training Credentials', columns: [{ key: 'workerId', label: 'Worker' }, { key: 'credential', label: 'Credential' }, { key: 'expires', label: 'Expires' }, { key: 'blockingWork', label: 'Blocks Work' }] },
+      { objectType: 'MobileDeviceAssignment', label: 'Mobile Devices', columns: [{ key: 'workerId', label: 'Worker' }, { key: 'deviceId', label: 'Device' }, { key: 'appProfile', label: 'Profile' }, { key: 'syncStatus', label: 'Sync' }] }
+    ],
+    actionIds: ['training.assign_refresher', 'onboarding.request_missing_evidence']
+  },
   schedule: {
     title: 'Schedule & Constraints',
     purpose: 'P6 mirror, critical path, constraints, impact review and human-approved rebaseline (AI may propose recovery, never rebaseline).',
@@ -54,9 +76,11 @@ export const SCREENS: Record<string, WorkbenchDef> = {
       { objectType: 'MaterialDemand', label: 'Demands', columns: [{ key: 'materialId', label: 'Material' }, { key: 'wpId', label: 'Work Pkg' }, { key: 'qty', label: 'Qty' }, { key: 'needBy', label: 'Need by' }, { key: 'reservation', label: 'SAP Resvn' }] },
       { objectType: 'ReservationProxy', label: 'SAP Reservations', columns: [{ key: 'desc', label: 'Description' }, { key: 'materialId', label: 'Material' }, { key: 'quantity', label: 'Qty' }] },
       { objectType: 'MaterialMirror', label: 'Material Master', columns: [{ key: 'desc', label: 'Description' }, { key: 'stock', label: 'Stock' }, { key: 'uom', label: 'UoM' }, { key: 'sloc', label: 'SLoc' }] },
+      { objectType: 'StagingKit', label: 'Staging Kits', columns: [{ key: 'wpId', label: 'Work Pkg' }, { key: 'kitStatus', label: 'Status' }, { key: 'shortageCount', label: 'Shortages' }, { key: 'laydownZone', label: 'Laydown' }] },
+      { objectType: 'ToolDemand', label: 'Tools & Equipment', columns: [{ key: 'toolClass', label: 'Tool' }, { key: 'wpId', label: 'Work Pkg' }, { key: 'needBy', label: 'Need By' }, { key: 'availability', label: 'Availability' }] },
       { objectType: 'ExpeditingCase', label: 'Expediting', columns: [{ key: 'demandId', label: 'Demand' }, { key: 'vendorId', label: 'Vendor' }, { key: 'promiseDate', label: 'Promise' }, { key: 'note', label: 'Note' }] }
     ],
-    actionIds: ['material.reserve', 'material.request_pr', 'material.issue']
+    actionIds: ['material.reserve', 'material.request_pr', 'material.issue', 'material.substitute', 'tool.reserve']
   },
   permits: {
     title: 'WCM, Permits, Isolation & LOTO',
@@ -67,6 +91,18 @@ export const SCREENS: Record<string, WorkbenchDef> = {
       { objectType: 'SafetyReadinessException', label: 'Correction Requests', columns: [{ key: 'permitId', label: 'Permit' }, { key: 'reason', label: 'Reason' }] }
     ],
     actionIds: ['permit.request_correction', 'permit.update_status']
+  },
+  'control-of-work': {
+    title: 'Control of Work, Isolation & Permit Readiness',
+    purpose: 'WCM/ePTW-aligned preplanning for isolation, LOTO, blinds, gas tests and SIMOPS. Safety sources remain authoritative; this app routes compliant correction/preplan requests and blocks unsafe execution.',
+    tabs: [
+      { objectType: 'IsolationPlan', label: 'Isolation Plans', columns: [{ key: 'wpId', label: 'Work Pkg' }, { key: 'isolationType', label: 'Type' }, { key: 'energyPoints', label: 'Points' }, { key: 'wcmReference', label: 'WCM Ref' }] },
+      { objectType: 'LOTOPackage', label: 'LOTO Packages', columns: [{ key: 'wpId', label: 'Work Pkg' }, { key: 'lockCount', label: 'Locks' }, { key: 'verification', label: 'Verification' }] },
+      { objectType: 'BlindListItem', label: 'Blind List', columns: [{ key: 'lineNumber', label: 'Line' }, { key: 'wpId', label: 'Work Pkg' }, { key: 'requiredPosition', label: 'Position' }, { key: 'verifiedBy', label: 'Verified By' }] },
+      { objectType: 'GasTestEvidence', label: 'Gas Test Evidence', columns: [{ key: 'permitId', label: 'Permit' }, { key: 'reading', label: 'Reading' }, { key: 'validUntil', label: 'Valid Until' }] },
+      { objectType: 'SafetyReadinessException', label: 'Safety Exceptions', columns: [{ key: 'permitId', label: 'Permit' }, { key: 'reason', label: 'Reason' }] }
+    ],
+    actionIds: ['permit.request_preplan', 'permit.request_correction']
   },
   'area-risk': {
     title: 'Area Risk Map & SIMOPS',
@@ -94,7 +130,19 @@ export const SCREENS: Record<string, WorkbenchDef> = {
       { objectType: 'EmergentWorkRequest', label: 'Emergent Work', columns: [{ key: 'title', label: 'Title' }, { key: 'scheduleImpactDays', label: 'Sched Δd' }, { key: 'costImpactMUSD', label: 'Cost Δ$M' }] },
       { objectType: 'ShiftHandover', label: 'Shift Handover', columns: [{ key: 'shift', label: 'Shift' }, { key: 'highlights', label: 'Highlights' }] }
     ],
-    actionIds: ['progress.submit', 'operation.confirm', 'emergent.raise']
+    actionIds: ['progress.submit', 'operation.confirm', 'emergent.raise', 'plan.publish', 'progress.supervisor_accept']
+  },
+  'execution-map': {
+    title: 'RTLS Execution Map & Daily Control Board',
+    purpose: 'Location-aware execution excellence: RTLS/IoT worker and equipment presence, zone occupancy, geofence alerts, mobile schedule sync and daily execution packets. RTLS is read-only; actions create governed response records.',
+    tabs: [
+      { objectType: 'DailyExecutionPlan', label: 'Daily Plans', columns: [{ key: 'shift', label: 'Shift' }, { key: 'planDate', label: 'Date' }, { key: 'crewCount', label: 'Crews' }, { key: 'criticalPathJobs', label: 'Critical Jobs' }] },
+      { objectType: 'CrewAssignment', label: 'Crew Assignments', columns: [{ key: 'crewId', label: 'Crew' }, { key: 'wpId', label: 'Work Pkg' }, { key: 'zone', label: 'Zone' }, { key: 'supervisorId', label: 'Supervisor' }] },
+      { objectType: 'MobileScheduleUpdate', label: 'Mobile Sync', columns: [{ key: 'deviceId', label: 'Device' }, { key: 'workerId', label: 'Worker' }, { key: 'syncStatus', label: 'Sync' }, { key: 'lastSync', label: 'Last Sync' }] },
+      { objectType: 'LocationRiskAlert', label: 'Location Alerts', columns: [{ key: 'zone', label: 'Zone' }, { key: 'alertType', label: 'Alert' }, { key: 'workerCount', label: 'Workers' }, { key: 'recommendedAction', label: 'Recommended Action' }] },
+      { objectType: 'ZoneOccupancy', label: 'Zone Occupancy', columns: [{ key: 'zone', label: 'Zone' }, { key: 'workerCount', label: 'Workers' }, { key: 'permitLimit', label: 'Limit' }, { key: 'riskScore', label: 'Risk' }] }
+    ],
+    actionIds: ['plan.publish', 'progress.supervisor_accept', 'safety.acknowledge_location_alert']
   },
   'labor-time': {
     title: 'Time, Labor, CATS & Payroll',
@@ -135,6 +183,38 @@ export const SCREENS: Record<string, WorkbenchDef> = {
       { objectType: 'CommercialClaim', label: 'Claims', columns: [{ key: 'title', label: 'Claim' }, { key: 'amountUSD', label: 'Amount $' }] }
     ],
     actionIds: ['forecast.submit_change', 'accrual.post']
+  },
+  'contract-performance': {
+    title: 'Contract Performance & Commercial Recovery',
+    purpose: 'Burned-vs-earned contract control, invoice-vs-schedule variance, claims, service entry readiness and contractor performance interventions. Sources: SAP Fieldglass, SAP MM Services, BDC actuals, P6 and vendor portals.',
+    tabs: [
+      { objectType: 'ContractPerformanceSnapshot', label: 'Performance Snapshots', columns: [{ key: 'vendor', label: 'Vendor' }, { key: 'burnedMUSD', label: 'Burned $M' }, { key: 'earnedMUSD', label: 'Earned $M' }, { key: 'leakagePct', label: 'Leakage %' }] },
+      { objectType: 'InvoiceScheduleVariance', label: 'Invoice vs Schedule', columns: [{ key: 'vendorId', label: 'Vendor' }, { key: 'invoiceNumber', label: 'Invoice' }, { key: 'amountUSD', label: 'Amount' }, { key: 'varianceReason', label: 'Variance' }] },
+      { objectType: 'CommercialClaim', label: 'Claims', columns: [{ key: 'title', label: 'Claim' }, { key: 'vendorId', label: 'Vendor' }, { key: 'amountUSD', label: 'Amount $' }] },
+      { objectType: 'ServiceEntrySheetProxy', label: 'SES Pipeline', columns: [{ key: 'vendorId', label: 'Vendor' }, { key: 'purchaseOrder', label: 'PO' }, { key: 'amountUSD', label: 'Amount' }] }
+    ],
+    actionIds: ['contract.reconcile_invoice', 'claim.decide', 'ses.prepare']
+  },
+  'cost-reconciliation': {
+    title: 'Cost Reconciliation, Accruals & Forecast Traceability',
+    purpose: 'Invoice-vs-schedule, commitment-vs-actual, accrual, earned value and forecast-change control. SAP FI/CO remains the posting source; BDC/Datasphere read models drive evidence and reconciliation.',
+    tabs: [
+      { objectType: 'CostReconciliationCase', label: 'Reconciliation Cases', columns: [{ key: 'caseType', label: 'Type' }, { key: 'costObject', label: 'Cost Object' }, { key: 'varianceUSD', label: 'Variance' }, { key: 'rootCause', label: 'Root Cause' }] },
+      { objectType: 'AccrualEstimate', label: 'Accrual Estimates', columns: [{ key: 'costObject', label: 'Cost Object' }, { key: 'amountUSD', label: 'Amount' }, { key: 'period', label: 'Period' }, { key: 'confidence', label: 'Confidence' }] },
+      { objectType: 'EarnedValueRecord', label: 'Earned Value', columns: [{ key: 'wpId', label: 'Work Pkg' }, { key: 'plannedValueMUSD', label: 'PV $M' }, { key: 'earnedValueMUSD', label: 'EV $M' }, { key: 'actualCostMUSD', label: 'AC $M' }] },
+      { objectType: 'ForecastChange', label: 'Forecast Changes', columns: [{ key: 'eventId', label: 'Event' }, { key: 'deltaMUSD', label: 'Delta $M' }, { key: 'driver', label: 'Driver' }, { key: 'impactArea', label: 'Area' }] }
+    ],
+    actionIds: ['cost.reconcile_case', 'accrual.approve_post', 'forecast.submit_change']
+  },
+  analytics: {
+    title: 'Analytics, Performance Insights & Exception-to-Action',
+    purpose: 'KPI layer over transactional records, not a disconnected dashboard. Every insight traces to source objects and creates a governed action or navigation target.',
+    tabs: [
+      { objectType: 'KPITrace', label: 'KPI Traceability', columns: [{ key: 'kpi', label: 'KPI' }, { key: 'value', label: 'Value' }, { key: 'threshold', label: 'Threshold' }, { key: 'sourceObjects', label: 'Source Objects' }] },
+      { objectType: 'PerformanceInsight', label: 'Insights', columns: [{ key: 'title', label: 'Insight' }, { key: 'category', label: 'Category' }, { key: 'impact', label: 'Impact' }, { key: 'recommendedAction', label: 'Recommended Action' }] },
+      { objectType: 'ExceptionToAction', label: 'Exception Actions', columns: [{ key: 'title', label: 'Exception' }, { key: 'targetRoute', label: 'Route' }, { key: 'ownerRole', label: 'Owner' }, { key: 'sourceKpi', label: 'KPI' }] }
+    ],
+    actionIds: ['analytics.create_action']
   },
   lessons: {
     title: 'Closeout, Lessons & Norms',

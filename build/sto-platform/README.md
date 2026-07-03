@@ -1,6 +1,6 @@
-# STO/SOT Enterprise Operating Platform
+# STO/SOT Nexus Command OS
 
-Next-generation Shutdown, Outage & Turnaround command-and-control platform built to the controlling specification in `KICKOFF_PROMPT.md`. Command-center-first, transaction-first, clean-core SAP orchestration with fail-closed safety controls, governed AI, and an interactive voice command layer.
+Next-generation Shutdown, Outage & Turnaround command-and-control platform built to the controlling specification in `KICKOFF_PROMPT.md` and the market-leading enhancement prompt in `../../prompts/23_market_leading_sto_sot_e2e_enhancement_prompt.md`. Command-center-first, transaction-first, clean-core SAP orchestration with fail-closed safety controls, governed AI, mobility readiness, FEL gates, e-workpacks, RTLS execution, commercial recovery, cost reconciliation, and analytics-to-action.
 
 ## Run
 
@@ -8,6 +8,7 @@ Next-generation Shutdown, Outage & Turnaround command-and-control platform built
 cd build/sto-platform
 npm install
 npm run dev        # http://localhost:3000  (redirects to /command-center)
+npm run dev:nexus  # http://localhost:3401  (isolated enhanced duplicate)
 
 npm audit --audit-level=moderate
 npm run validate   # Next route typegen + typecheck + governance test suite + production build
@@ -18,9 +19,10 @@ Requires Node 20.9+ (Node 22/24 recommended for the validated runtime). Voice co
 ## What this is
 
 - **Process-first execution (v1.1)**: a machine-readable STO process backbone (`src/server/domain/process.ts`) drives the whole UX — a 15-stage lifecycle ribbon on every screen with live open-item counts, **state-aware action triggers on every row** (only the governed actions valid for that object's current lifecycle state and your role, pre-filled from the object), a "what happens next" panel per selection, and **My Work** (`/my-work`): the persona queue of approvals waiting on you (SoD-filtered), process actions in your court, and AI review packages addressed to your role. See `docs/domain/STO_PROCESS_ACTIVITY_MAP.md`.
+- **Nexus enhancement workbenches (v1.2)**: Mobility Readiness, FEL Readiness, Control of Work, RTLS Execution Map, Contract Performance, Cost Reconciliation, and Analytics & Insights. These are not decorative pages: each is backed by source-of-record objects, state-aware row actions, connector-ready data contracts, My Work triggers, and regression tests.
 - **20+ transactional workbenches** (portfolio, scope, work packages, schedule, materials, permits/WCM, area risk, contractors, field execution, time/labor/CATS/payroll, QA/turnover, startup/PSSR/RTS, cost, lessons, data foundation, integration hub, resilience ops, AI workbench, admin) — every screen is a contract-driven object queue with governed actions, not a dashboard.
 - **Governed transaction backbone**: every controlled action produces a canonical transaction envelope → validation → posting-path decision → four-eyes approval (SoD enforced server-side) → transactional outbox → object-specific connector → read-back → reconciliation → immutable audit. Posted records reverse via linked transactions, never in-place edits.
-- **Object-specific SAP connectors** (never one generic adapter): `API_MAINTNOTIFICATION`, `API_MAINTENANCEORDER_0002`, `API_MAINTORDERCONFIRMATION`, `API_RESERVATION_DOCUMENT_SRV`, `API_PURCHASEREQUISITION_2`, `API_MATERIAL_DOCUMENT_SRV`, `API_SERVICE_ENTRY_SHEET_SRV`, `API_MANAGE_WORKFORCE_TIMESHEET` (SAP_COM_0027), Journal Entry, DMS, MDG, APM, BDC/Datasphere (read-only) — plus P6, ePTW, PI historian, RTLS, Fieldglass, payroll gateways, PowerPlan, ServiceNow.
+- **Object-specific SAP connectors** (never one generic adapter): `API_MAINTNOTIFICATION`, `API_MAINTENANCEORDER_0002`, `API_MAINTORDERCONFIRMATION`, `API_RESERVATION_DOCUMENT_SRV`, `API_PURCHASEREQUISITION_2`, `API_MATERIAL_DOCUMENT_SRV`, `API_SERVICE_ENTRY_SHEET_SRV`, `API_MANAGE_WORKFORCE_TIMESHEET` (SAP_COM_0027), Journal Entry, DMS, MDG, APM, BDC/Datasphere (read-only), SAP SSAM mobile sync, SAP FSM dispatch — plus P6, ePTW, PI historian, RTLS, Fieldglass, LMS, access/badge, OpenText/Documentum, payroll gateways, PowerPlan, ServiceNow.
 - **Fail-closed safety**: WCM/ePTW permits and isolations are read-only sources of record. Any write attempt is refused by the posting-path engine and audited; field start and work-package release fail closed on suspended/expired clearance.
 - **Governed AI**: 12-agent roster with deterministic model routing, cited review packages, confidence, and a policy gateway that structurally blocks AI from approving, posting, releasing, restoring, rebaselining or replaying. The AI Workbench includes a live "prove blocked action" button.
 - **Voice commands**: push-to-talk (or typed) commands navigate, answer status questions from read models, and pre-fill controlled-action drafts. Voice never executes controlled actions and refuses safety/finance/startup approvals outright. Prompt-injection heuristics quarantine instruction-like transcripts.
@@ -76,3 +78,4 @@ Validated locally on Node 24.18.0 / npm 11.16.0:
 | Process map / state-actions / work queue | `src/server/domain/process.ts` |
 | Governance test suite | `tests/governance.test.ts` |
 | Process/transactional-UX tests | `tests/process.test.ts` |
+| Nexus enhancement tests | `tests/market-enhancement.test.ts` |

@@ -109,3 +109,44 @@ Delivered:
 | Governed write smoke | ✅ Gus Weber (`u-matl`) submitted MAT-4714 reservation; Kate Brody (`u-super`) approved; simulator returned SAP reservation `0002100001`; transaction reconciled `MATCHED` |
 
 **Additional remediation found during validation:** the process action prefilled material, quantity, plant, storage location, need-by date and work package, but the governed SAP reservation also requires receiver order. `MaterialDemand` seed data now carries `orderId`, the object-state matrix maps `orderId` into `material.reserve`, and `tests/process.test.ts` asserts MD-002 prefill includes `ORD-4000101`.
+
+---
+
+## v1.2 — Nexus Market-Leading Enhancement Duplicate (2026-07-02)
+
+This pass was completed in the new duplicate repo `STO_SOT_Nexus_Command_OS`; the last working `STO_SOT_FB` build was not edited.
+
+Delivered:
+
+| Area | Result |
+| --- | --- |
+| New workbenches | `/mobility-readiness`, `/fel-readiness`, `/control-of-work`, `/execution-map`, `/contract-performance`, `/cost-reconciliation`, `/analytics` |
+| New connector definitions | SAP SSAM, SAP FSM, LMS training, access/badge, OpenText/Documentum DMS |
+| New object families | workforce readiness, onboarding, credentials, FEL gates, readiness exceptions, e-workpacks, tool demand, staging kits, isolation/LOTO/blinds/gas tests, daily plans, RTLS alerts, invoice variance, accruals, earned value, KPI traceability |
+| New governed actions | refresher training, onboarding evidence request, blocker assignment, waiver request, readiness resolution, DMS revision request, material substitute, tool reservation, permit/isolation preplan, location alert acknowledgement, daily plan publish, progress acceptance, invoice reconciliation, cost case resolution, SAP FI/CO accrual posting, analytics-to-action |
+| Process backbone | stage counts and My Work queues now include the new blockers and role-owned actions |
+| Regression tests | Added `tests/market-enhancement.test.ts`; suite now has 43 passing tests |
+
+Validation:
+
+| Check | Result |
+| --- | --- |
+| `npm install` | passed, 0 vulnerabilities |
+| `npm run validate` | passed |
+| Vitest | 3 files, 43/43 tests passed |
+| Production build | passed, new routes included |
+| HTTP route smoke on port 3401 | all key routes returned 200 |
+| HTTP API smoke on port 3401 | process, bootstrap, object and connector lookup APIs returned 200 |
+| Governed HTTP workflow smoke | contractor coordinator submitted LMS refresher; HSE approved; credential state changed to `refresher_assigned` |
+
+Local validation links:
+
+- `http://127.0.0.1:3401/command-center`
+- `http://127.0.0.1:3401/my-work`
+- `http://127.0.0.1:3401/mobility-readiness`
+- `http://127.0.0.1:3401/fel-readiness`
+- `http://127.0.0.1:3401/control-of-work`
+- `http://127.0.0.1:3401/execution-map`
+- `http://127.0.0.1:3401/contract-performance`
+- `http://127.0.0.1:3401/cost-reconciliation`
+- `http://127.0.0.1:3401/analytics`

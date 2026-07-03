@@ -141,6 +141,38 @@ export const CONNECTOR_DEFS: Def[] = [
     capabilities: R({ create: true }), writePolicy: 'STAGE_ONLY', docPrefix: 'FG'
   },
   {
+    connectorId: 'sap-ssam-mobile', label: 'SAP Service and Asset Manager', sourceSystem: 'SAP_SSAM', sourceModule: 'Mobile EAM',
+    apiServiceName: 'SSAM_MOBILE_SYNC', apiPath: '/mobileservices/ssam/workorders',
+    sourceObject: 'MobileWorkOrder', keys: ['MobileAssignmentId', 'WorkOrder'],
+    capabilities: R({ update: true, confirm: true, attach: true }), writePolicy: 'STAGE_ONLY', docPrefix: 'SSAM',
+    docsUrl: 'https://help.sap.com/docs/SAP_SERVICE_AND_ASSET_MANAGER'
+  },
+  {
+    connectorId: 'sap-fsm-dispatch', label: 'SAP Field Service Management', sourceSystem: 'SAP_FSM', sourceModule: 'Field Dispatch',
+    apiServiceName: 'FSM_SERVICE_CALL_API', apiPath: '/fsm/api/servicecalls',
+    sourceObject: 'ServiceCall', keys: ['ServiceCallId', 'ActivityId'],
+    capabilities: R({ create: true, update: true }), writePolicy: 'APPROVAL_REQUIRED', docPrefix: 'FSM',
+    docsUrl: 'https://help.sap.com/docs/SAP_FIELD_SERVICE_MANAGEMENT'
+  },
+  {
+    connectorId: 'lms-training', label: 'Training / LMS Credential Registry', sourceSystem: 'LMS', sourceModule: 'Training & Compliance',
+    apiServiceName: 'LMS_CREDENTIAL_API', apiPath: '/lms/api/v1/credentials',
+    sourceObject: 'TrainingCredential', keys: ['WorkerId', 'CredentialCode'],
+    capabilities: R({ update: true }), writePolicy: 'STAGE_ONLY', docPrefix: 'TRN'
+  },
+  {
+    connectorId: 'iam-access', label: 'Access Control / Badge System', sourceSystem: 'IAM_ACCESS', sourceModule: 'Site Access',
+    apiServiceName: 'ACCESS_BADGE_API', apiPath: '/access/api/v1/badges',
+    sourceObject: 'AccessBadge', keys: ['BadgeId', 'WorkerId'],
+    capabilities: R({ update: true }), writePolicy: 'STAGE_ONLY', docPrefix: 'BADGE'
+  },
+  {
+    connectorId: 'opentext-dms', label: 'OpenText / Documentum DMS', sourceSystem: 'OPENTEXT_DMS', sourceModule: 'Engineering Documents',
+    apiServiceName: 'DOCUMENT_CONTROL_API', apiPath: '/dms/api/v1/documents',
+    sourceObject: 'DocumentBundle', keys: ['DocumentId', 'Revision'],
+    capabilities: R({ update: true, attach: true }), writePolicy: 'STAGE_ONLY', docPrefix: 'DMS'
+  },
+  {
     connectorId: 'p6-schedule', label: 'Primavera P6 EPPM', sourceSystem: 'P6', sourceModule: 'Schedule',
     apiServiceName: 'P6_EPPM_REST', apiPath: '/p6ws/restapi/activity',
     sourceObject: 'Activity', keys: ['ObjectId'],

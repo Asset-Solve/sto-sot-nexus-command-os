@@ -14,7 +14,9 @@ const NAV: { group: string; items: { route: string; label: string }[] }[] = [
       { route: '/my-work', label: 'My Work' },
       { route: '/command-center', label: 'Command Center' },
       { route: '/field', label: 'Field Execution' },
+      { route: '/execution-map', label: 'RTLS Execution Map' },
       { route: '/permits', label: 'Permits & WCM' },
+      { route: '/control-of-work', label: 'Control of Work' },
       { route: '/area-risk', label: 'Area Risk Map' },
       { route: '/labor-time', label: 'Time & Labor' }
     ]
@@ -24,7 +26,9 @@ const NAV: { group: string; items: { route: string; label: string }[] }[] = [
     items: [
       { route: '/portfolio', label: 'Portfolio & Premise' },
       { route: '/scope', label: 'Scope Control Room' },
+      { route: '/fel-readiness', label: 'FEL & Readiness' },
       { route: '/work-packages', label: 'Work Package Studio' },
+      { route: '/mobility-readiness', label: 'Mobility Readiness' },
       { route: '/schedule', label: 'Schedule & Constraints' },
       { route: '/materials', label: 'Materials & Logistics' },
       { route: '/contractors', label: 'Contractors & Commercial' }
@@ -36,6 +40,9 @@ const NAV: { group: string; items: { route: string; label: string }[] }[] = [
       { route: '/qa', label: 'QA & Turnover' },
       { route: '/startup-readiness', label: 'Startup / PSSR / RTS' },
       { route: '/cost', label: 'Cost & Controls' },
+      { route: '/cost-reconciliation', label: 'Cost Reconciliation' },
+      { route: '/contract-performance', label: 'Contract Performance' },
+      { route: '/analytics', label: 'Analytics & Insights' },
       { route: '/lessons', label: 'Lessons & Norms' }
     ]
   },
@@ -70,8 +77,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     <div className="shell">
       <nav className="sidenav">
         <div className="brand">
-          <b>STO / SOT Platform</b>
-          <span>Turnaround Command &amp; Control</span>
+          <b>STO / SOT Nexus</b>
+          <span>Turnaround Command OS</span>
         </div>
         {NAV.map((g) => (
           <div key={g.group}>

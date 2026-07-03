@@ -1,12 +1,14 @@
 {
-  "name": "sto-sot-platform",
+  "name": "sto-sot-nexus-command-os",
   "version": "1.0.0",
   "private": true,
   "description": "Enterprise Shutdown, Outage & Turnaround command-and-control platform. Clean-core SAP orchestration, governed writeback, AI-assisted review, voice command layer.",
   "scripts": {
     "dev": "next dev -p 3000",
+    "dev:nexus": "next dev -p 3401",
     "build": "next build",
     "start": "next start -p 3000",
+    "start:nexus": "next start -p 3401",
     "typecheck": "next typegen && tsc --noEmit",
     "test": "vitest run",
     "validate": "npm run typecheck && npm run test && npm run build"

@@ -263,6 +263,124 @@ export const ACTIONS: ActionDefinition[] = [
     }
   },
 
+  // ======================= MARKET-LEADING READINESS / MOBILITY =======================
+  {
+    id: 'training.assign_refresher',
+    label: 'Assign Refresher Training',
+    description: 'Stage a credential remediation package to the LMS/training connector. Work remains blocked until the source credential is refreshed and read back.',
+    screen: '/mobility-readiness', businessCapability: 'Mobility & Compliance', actionClass: 'CONTROLLED', riskClass: 'SAFETY_CRITICAL',
+    allowedRoles: ['contractor_coordinator', 'hse_safety_reviewer', 'maintenance_supervisor'], approverRoles: ['hse_safety_reviewer'],
+    sod: true, targetObjectType: 'TrainingCredential', targetSystem: 'LMS',
+    connectorId: 'lms-training', connectorOperation: 'update',
+    fields: [
+      { name: 'sourceObjectId', label: 'Credential record', type: 'text', required: true },
+      { name: 'workerId', label: 'Worker', type: 'lookup', lookupCategory: 'workers', required: true },
+      { name: 'credential', label: 'Credential', type: 'text', required: true },
+      { name: 'dueDate', label: 'Due date', type: 'date', required: true },
+      { name: 'reason', label: 'Reason', type: 'textarea', required: true }
+    ],
+    validate: (p) => req(p, ['sourceObjectId', 'workerId', 'credential', 'dueDate', 'reason']),
+    buildPayload: (p) => ({
+      apiService: 'LMS_CREDENTIAL_API',
+      CredentialAssignment: { Worker: p['workerId'], CredentialCode: p['credential'], DueDate: p['dueDate'], Reason: p['reason'] }
+    }),
+    apply: (p, txn, ctx) => setState(ctx.tenantId, p['sourceObjectId'] as string, 'refresher_assigned', ctx, { dueDate: p['dueDate'], lmsPackage: txn.targetDocumentNumber ?? 'STAGED_NOT_POSTED' })
+  },
+  {
+    id: 'onboarding.request_missing_evidence',
+    label: 'Request Missing Evidence',
+    description: 'Create a contractor onboarding evidence request with an auditable owner and due date. Access stays blocked until evidence is read back from the source system.',
+    screen: '/mobility-readiness', businessCapability: 'Mobility & Compliance', actionClass: 'CONTROLLED', riskClass: 'HIGH',
+    allowedRoles: ['contractor_coordinator', 'hse_safety_reviewer'], approverRoles: ['maintenance_supervisor', 'hse_safety_reviewer'],
+    sod: true, targetObjectType: 'ContractorOnboardingPacket', targetSystem: 'STO_PLATFORM',
+    fields: [
+      { name: 'sourceObjectId', label: 'Onboarding packet', type: 'text', required: true },
+      { name: 'missingEvidence', label: 'Missing evidence', type: 'textarea', required: true },
+      { name: 'dueDate', label: 'Due date', type: 'date', required: true },
+      { name: 'reason', label: 'Reason', type: 'textarea', required: true }
+    ],
+    validate: (p) => req(p, ['sourceObjectId', 'missingEvidence', 'dueDate', 'reason']),
+    apply: (p, _t, ctx) => setState(ctx.tenantId, p['sourceObjectId'] as string, 'evidence_requested', ctx, { missingEvidence: p['missingEvidence'], evidenceDueDate: p['dueDate'] })
+  },
+  {
+    id: 'gate.assign_blocker',
+    label: 'Assign Gate Blocker',
+    description: 'Create a gate blocker from a readiness exception with owner role, evidence requirement and due date.',
+    screen: '/fel-readiness', businessCapability: 'FEL Readiness', actionClass: 'ADVISORY', riskClass: 'HIGH',
+    allowedRoles: ['sto_manager', 'outage_manager', 'scheduler_project_controls', 'hse_safety_reviewer', 'material_planner'], sod: false,
+    targetObjectType: 'GateBlocker', targetSystem: 'STO_PLATFORM',
+    fields: [
+      { name: 'title', label: 'Blocker title', type: 'text', required: true },
+      { name: 'eventId', label: 'Event', type: 'lookup', lookupCategory: 'events', required: true },
+      { name: 'sourceObjectId', label: 'Source object', type: 'text', required: true },
+      { name: 'ownerRole', label: 'Owner role', type: 'text', required: true },
+      { name: 'requiredEvidence', label: 'Required evidence', type: 'textarea', required: true },
+      { name: 'dueDate', label: 'Due date', type: 'date', required: true }
+    ],
+    validate: (p) => req(p, ['title', 'eventId', 'sourceObjectId', 'ownerRole', 'requiredEvidence', 'dueDate']),
+    apply: (p, txn, ctx) => {
+      const db = getDb();
+      putObject(db, {
+        id: newId('GB'), tenantId: ctx.tenantId, objectType: 'GateBlocker', sourceSystem: 'STO_PLATFORM',
+        sourceMode: 'SIMULATOR', sourceObject: 'GateBlocker', sourceReference: txn.transactionId,
+        lifecycleState: 'open', approvalState: 'NOT_REQUIRED', riskClass: 'HIGH', owner: ctx.user.id,
+        sourceFreshness: nowIso(), createdBy: ctx.user.id, createdAt: nowIso(), updatedBy: ctx.user.id, updatedAt: nowIso(),
+        correlationId: txn.correlationId, data: { ...p, stage: 'Readiness Gate' }
+      });
+    }
+  },
+  {
+    id: 'gate.request_waiver',
+    label: 'Request Gate Waiver',
+    description: 'Route a readiness waiver through STO leadership. Waivers do not close the exception; they record a governed risk acceptance.',
+    screen: '/fel-readiness', businessCapability: 'FEL Readiness', actionClass: 'CONTROLLED', riskClass: 'HIGH',
+    allowedRoles: ['sto_manager', 'outage_manager'], approverRoles: ['event_sponsor', 'operations_startup_authority'], requiresReason: true,
+    sod: true, targetObjectType: 'FELGate', targetSystem: 'STO_PLATFORM',
+    fields: [
+      { name: 'sourceObjectId', label: 'Gate', type: 'text', required: true },
+      { name: 'waiverScope', label: 'Waiver scope', type: 'textarea', required: true },
+      { name: 'expiryDate', label: 'Expiry date', type: 'date', required: true },
+      { name: 'reason', label: 'Risk acceptance reason', type: 'textarea', required: true }
+    ],
+    validate: (p) => req(p, ['sourceObjectId', 'waiverScope', 'expiryDate', 'reason']),
+    apply: (p, _t, ctx) => setState(ctx.tenantId, p['sourceObjectId'] as string, 'waiver_requested', ctx, { waiverScope: p['waiverScope'], waiverExpiryDate: p['expiryDate'], waiverReason: p['reason'] })
+  },
+  {
+    id: 'readiness.resolve',
+    label: 'Resolve Readiness Exception',
+    description: 'Resolve a readiness exception only with evidence and owner signoff.',
+    screen: '/fel-readiness', businessCapability: 'FEL Readiness', actionClass: 'CONTROLLED', riskClass: 'HIGH',
+    allowedRoles: ['sto_manager', 'outage_manager', 'material_planner', 'hse_safety_reviewer', 'work_package_owner'], approverRoles: ['sto_manager', 'outage_manager'],
+    sod: true, targetObjectType: 'ReadinessException', targetSystem: 'STO_PLATFORM',
+    fields: [
+      { name: 'sourceObjectId', label: 'Exception', type: 'text', required: true },
+      { name: 'evidenceRef', label: 'Evidence reference', type: 'text', required: true },
+      { name: 'resolution', label: 'Resolution note', type: 'textarea', required: true }
+    ],
+    validate: (p) => req(p, ['sourceObjectId', 'evidenceRef', 'resolution']),
+    apply: (p, _t, ctx) => setState(ctx.tenantId, p['sourceObjectId'] as string, 'resolved', ctx, { evidenceRef: p['evidenceRef'], resolution: p['resolution'] })
+  },
+  {
+    id: 'document.request_revision',
+    label: 'Request Document Revision',
+    description: 'Stage a document-control revision request for stale or missing e-workpack evidence.',
+    screen: '/work-packages', businessCapability: 'Digital Workpacks', actionClass: 'CONTROLLED', riskClass: 'MEDIUM',
+    allowedRoles: ['work_package_owner', 'maintenance_planner', 'qa_qc_inspector'], approverRoles: ['work_package_owner', 'sto_manager'],
+    sod: true, targetObjectType: 'DocumentBundle', targetSystem: 'OPENTEXT_DMS',
+    connectorId: 'opentext-dms', connectorOperation: 'update',
+    fields: [
+      { name: 'sourceObjectId', label: 'Document bundle', type: 'text', required: true },
+      { name: 'revisionReason', label: 'Revision reason', type: 'textarea', required: true },
+      { name: 'requiredBy', label: 'Required by', type: 'date', required: true }
+    ],
+    validate: (p) => req(p, ['sourceObjectId', 'revisionReason', 'requiredBy']),
+    buildPayload: (p) => ({
+      apiService: 'DOCUMENT_CONTROL_API',
+      DocumentRevisionRequest: { DocumentBundle: p['sourceObjectId'], Reason: p['revisionReason'], RequiredBy: p['requiredBy'] }
+    }),
+    apply: (p, txn, ctx) => setState(ctx.tenantId, p['sourceObjectId'] as string, 'revision_requested', ctx, { revisionReason: p['revisionReason'], dmsPackage: txn.targetDocumentNumber ?? 'STAGED_NOT_POSTED' })
+  },
+
   // ======================= SCHEDULE =======================
   {
     id: 'schedule.rebaseline',
@@ -411,6 +529,60 @@ export const ACTIONS: ActionDefinition[] = [
       MaterialDocument: { GoodsMovementCode: '03', Material: p['materialId'], QuantityInEntryUnit: p['quantity'], Plant: p['plantId'], Reservation: p['reservation'], GoodsMovementType: '261' }
     })
   },
+  {
+    id: 'material.substitute',
+    label: 'Approve Material Substitute',
+    description: 'Create a governed substitute decision for an unavailable material, preserving SAP material master and engineering approval traceability.',
+    screen: '/materials', businessCapability: 'Materials Management', actionClass: 'CONTROLLED', riskClass: 'HIGH',
+    allowedRoles: ['material_planner', 'maintenance_planner', 'reliability_engineer'], approverRoles: ['sto_manager', 'maintenance_supervisor'],
+    requiresReason: true, sod: true, targetObjectType: 'MaterialSubstitutionRequest', targetSystem: 'STO_PLATFORM',
+    fields: [
+      { name: 'sourceObjectId', label: 'Demand / shortage', type: 'text', required: true },
+      { name: 'originalMaterialId', label: 'Original material', type: 'lookup', lookupCategory: 'materials', required: true },
+      { name: 'substituteMaterialId', label: 'Substitute material', type: 'lookup', lookupCategory: 'materials', required: true },
+      { name: 'quantity', label: 'Quantity', type: 'number', required: true },
+      { name: 'reason', label: 'Engineering/material reason', type: 'textarea', required: true }
+    ],
+    validate: (p) => {
+      const out = req(p, ['sourceObjectId', 'originalMaterialId', 'substituteMaterialId', 'quantity', 'reason']);
+      if (p['originalMaterialId'] === p['substituteMaterialId']) out.push({ severity: 'ERROR', field: 'substituteMaterialId', message: 'Substitute must differ from original material.' });
+      return out;
+    },
+    apply: (p, txn, ctx) => {
+      const db = getDb();
+      putObject(db, {
+        id: newId('MSR'), tenantId: ctx.tenantId, objectType: 'MaterialSubstitutionRequest', sourceSystem: 'STO_PLATFORM',
+        sourceMode: 'SIMULATOR', sourceObject: 'MaterialSubstitutionRequest', sourceReference: txn.transactionId,
+        lifecycleState: 'approved', approvalState: 'APPROVED', riskClass: 'HIGH', owner: ctx.user.id,
+        sourceFreshness: nowIso(), createdBy: ctx.user.id, createdAt: nowIso(), updatedBy: ctx.user.id, updatedAt: nowIso(),
+        correlationId: txn.correlationId,
+        data: { ...p, eventId: 'EV-1001', plantId: 'P100', approvalTrace: txn.transactionId }
+      });
+      setState(ctx.tenantId, p['sourceObjectId'] as string, 'substitution_approved', ctx, { substituteMaterialId: p['substituteMaterialId'] });
+    }
+  },
+  {
+    id: 'tool.reserve',
+    label: 'Reserve Tool / Rental Equipment',
+    description: 'Govern tool or rental equipment readiness; reserves internal tooling or stages a rental request for procurement/contractor coordination.',
+    screen: '/materials', businessCapability: 'Tools & Logistics', actionClass: 'CONTROLLED', riskClass: 'MEDIUM',
+    allowedRoles: ['material_planner', 'warehouse_lead', 'work_package_owner'], approverRoles: ['maintenance_supervisor'],
+    sod: true, targetObjectType: 'ToolDemand', targetSystem: 'STO_PLATFORM',
+    fields: [
+      { name: 'sourceObjectId', label: 'Tool demand', type: 'text', required: true },
+      { name: 'toolClass', label: 'Tool class', type: 'text', required: true },
+      { name: 'needBy', label: 'Need by', type: 'date', required: true },
+      { name: 'fulfillmentPath', label: 'Fulfillment path (reserve/rent)', type: 'text', required: true }
+    ],
+    validate: (p) => {
+      const out = req(p, ['sourceObjectId', 'toolClass', 'needBy', 'fulfillmentPath']);
+      if (p['fulfillmentPath'] && !['reserve', 'rent'].includes(String(p['fulfillmentPath']))) {
+        out.push({ severity: 'ERROR', field: 'fulfillmentPath', message: 'Fulfillment path must be reserve or rent.' });
+      }
+      return out;
+    },
+    apply: (p, _t, ctx) => setState(ctx.tenantId, p['sourceObjectId'] as string, p['fulfillmentPath'] === 'rent' ? 'rental_requested' : 'reserved', ctx, { fulfillmentPath: p['fulfillmentPath'] })
+  },
 
   // ======================= PERMITS / SAFETY =======================
   {
@@ -451,6 +623,32 @@ export const ACTIONS: ActionDefinition[] = [
     }
   },
   {
+    id: 'permit.request_preplan',
+    label: 'Request Isolation / Permit Preplan',
+    description: 'Create a WCM/ePTW preplanning package for isolation, LOTO, blinds or gas testing. This does not write permit status; it routes work to the WCM authority.',
+    screen: '/control-of-work', businessCapability: 'Safety / WCM', actionClass: 'CONTROLLED', riskClass: 'SAFETY_CRITICAL',
+    allowedRoles: ['work_package_owner', 'maintenance_planner', 'hse_safety_reviewer', 'maintenance_supervisor'], approverRoles: ['wcm_authority'],
+    requiresReason: true, sod: true, targetObjectType: 'SafetyReadinessException', targetSystem: 'STO_PLATFORM',
+    fields: [
+      { name: 'workPackageId', label: 'Work package', type: 'lookup', lookupCategory: 'workPackages', required: true },
+      { name: 'preplanType', label: 'Preplan type', type: 'text', required: true },
+      { name: 'requiredBy', label: 'Required by', type: 'date', required: true },
+      { name: 'reason', label: 'Reason / hazard context', type: 'textarea', required: true }
+    ],
+    validate: (p) => req(p, ['workPackageId', 'preplanType', 'requiredBy', 'reason']),
+    apply: (p, txn, ctx) => {
+      const db = getDb();
+      putObject(db, {
+        id: newId('SRE'), tenantId: ctx.tenantId, objectType: 'SafetyReadinessException', sourceSystem: 'STO_PLATFORM',
+        sourceMode: 'SIMULATOR', sourceObject: 'PermitPreplanRequest', sourceReference: txn.transactionId,
+        lifecycleState: 'routed_to_wcm', approvalState: 'APPROVED', riskClass: 'SAFETY_CRITICAL', owner: 'u-wcm',
+        sourceFreshness: nowIso(), createdBy: ctx.user.id, createdAt: nowIso(), updatedBy: ctx.user.id, updatedAt: nowIso(),
+        correlationId: txn.correlationId,
+        data: { wpId: p['workPackageId'], preplanType: p['preplanType'], requiredBy: p['requiredBy'], reason: p['reason'], plantId: 'P100' }
+      });
+    }
+  },
+  {
     id: 'simops.assign_mitigation',
     label: 'Assign SIMOPS Mitigation',
     description: 'Assign mitigation and owner for a SIMOPS conflict.',
@@ -464,6 +662,21 @@ export const ACTIONS: ActionDefinition[] = [
     ],
     validate: (p) => req(p, ['sourceObjectId', 'mitigation', 'ownerRole']),
     apply: (p, _t, ctx) => setState(ctx.tenantId, p['sourceObjectId'] as string, 'mitigating', ctx, { mitigation: p['mitigation'], mitigationOwner: p['ownerRole'] })
+  },
+  {
+    id: 'safety.acknowledge_location_alert',
+    label: 'Acknowledge Location Risk Alert',
+    description: 'Acknowledge an RTLS/geofence risk alert and assign a human mitigation. RTLS remains read-only; the platform records the response.',
+    screen: '/execution-map', businessCapability: 'Safety / Area Risk', actionClass: 'CONTROLLED', riskClass: 'SAFETY_CRITICAL',
+    allowedRoles: ['hse_safety_reviewer', 'maintenance_supervisor', 'wcm_authority'], approverRoles: ['hse_safety_reviewer'],
+    sod: true, targetObjectType: 'LocationRiskAlert', targetSystem: 'STO_PLATFORM',
+    fields: [
+      { name: 'sourceObjectId', label: 'Location alert', type: 'text', required: true },
+      { name: 'mitigation', label: 'Mitigation', type: 'textarea', required: true },
+      { name: 'ownerRole', label: 'Owner role', type: 'text', required: true }
+    ],
+    validate: (p) => req(p, ['sourceObjectId', 'mitigation', 'ownerRole']),
+    apply: (p, _t, ctx) => setState(ctx.tenantId, p['sourceObjectId'] as string, 'acknowledged', ctx, { mitigation: p['mitigation'], mitigationOwner: p['ownerRole'] })
   },
 
   // ======================= CONTRACTORS / COST =======================
@@ -546,6 +759,107 @@ export const ACTIONS: ActionDefinition[] = [
       }
     })
   },
+  {
+    id: 'contract.reconcile_invoice',
+    label: 'Reconcile Invoice Variance',
+    description: 'Reconcile vendor invoice variance against schedule progress, earned value, SES evidence and contract terms.',
+    screen: '/contract-performance', businessCapability: 'Commercial Control', actionClass: 'CONTROLLED', riskClass: 'FINANCE_CRITICAL',
+    allowedRoles: ['finance_cost_controller', 'contractor_coordinator'], approverRoles: ['finance_cost_controller', 'sto_manager'],
+    requiresReason: true, sod: true, targetObjectType: 'InvoiceScheduleVariance', targetSystem: 'STO_PLATFORM',
+    fields: [
+      { name: 'sourceObjectId', label: 'Variance case', type: 'text', required: true },
+      { name: 'decision', label: 'Decision (accept/dispute/accrue)', type: 'text', required: true },
+      { name: 'reason', label: 'Commercial reason', type: 'textarea', required: true }
+    ],
+    validate: (p) => {
+      const out = req(p, ['sourceObjectId', 'decision', 'reason']);
+      if (p['decision'] && !['accept', 'dispute', 'accrue'].includes(String(p['decision']))) out.push({ severity: 'ERROR', field: 'decision', message: 'Decision must be accept, dispute or accrue.' });
+      return out;
+    },
+    apply: (p, _t, ctx) => setState(ctx.tenantId, p['sourceObjectId'] as string, `variance_${p['decision']}`, ctx, { decisionReason: p['reason'] })
+  },
+  {
+    id: 'cost.reconcile_case',
+    label: 'Resolve Cost Reconciliation Case',
+    description: 'Resolve a commitment/actual/accrual mismatch with root-cause, evidence and next-step posting path.',
+    screen: '/cost-reconciliation', businessCapability: 'Cost Control', actionClass: 'CONTROLLED', riskClass: 'FINANCE_CRITICAL',
+    allowedRoles: ['finance_cost_controller', 'sto_manager'], approverRoles: ['finance_cost_controller', 'event_sponsor'],
+    requiresReason: true, sod: true, targetObjectType: 'CostReconciliationCase', targetSystem: 'STO_PLATFORM',
+    fields: [
+      { name: 'sourceObjectId', label: 'Reconciliation case', type: 'text', required: true },
+      { name: 'resolutionPath', label: 'Resolution path', type: 'text', required: true },
+      { name: 'evidenceRef', label: 'Evidence reference', type: 'text', required: true },
+      { name: 'reason', label: 'Reason', type: 'textarea', required: true }
+    ],
+    validate: (p) => req(p, ['sourceObjectId', 'resolutionPath', 'evidenceRef', 'reason']),
+    apply: (p, _t, ctx) => setState(ctx.tenantId, p['sourceObjectId'] as string, 'resolved', ctx, { resolutionPath: p['resolutionPath'], evidenceRef: p['evidenceRef'], reason: p['reason'] })
+  },
+  {
+    id: 'accrual.approve_post',
+    label: 'Approve & Post Accrual Estimate',
+    description: 'Post a governed accrual estimate to SAP FI/CO Journal Entry after confidence and evidence validation.',
+    screen: '/cost-reconciliation', businessCapability: 'Cost Control', actionClass: 'CONTROLLED', riskClass: 'FINANCE_CRITICAL',
+    allowedRoles: ['finance_cost_controller'], approverRoles: ['finance_cost_controller', 'event_sponsor'],
+    requiresReason: true, sod: true, targetObjectType: 'JournalEntryProxy', targetSystem: 'SAP_S4',
+    connectorId: 'sap-fico-journal', connectorOperation: 'create',
+    fields: [
+      { name: 'sourceObjectId', label: 'Accrual estimate', type: 'text', required: true },
+      { name: 'companyCode', label: 'Company code', type: 'text', required: true },
+      { name: 'postingPeriod', label: 'Posting period', type: 'text', required: true },
+      { name: 'costObject', label: 'Cost object', type: 'lookup', lookupCategory: 'costObjects', required: true },
+      { name: 'amountUSD', label: 'Amount (USD)', type: 'number', required: true },
+      { name: 'reason', label: 'Reason', type: 'textarea', required: true }
+    ],
+    validate: (p) => {
+      const out = req(p, ['sourceObjectId', 'companyCode', 'postingPeriod', 'costObject', 'amountUSD', 'reason']);
+      if (p['postingPeriod'] && !/^\d{4}-\d{2}$/.test(String(p['postingPeriod']))) out.push({ severity: 'ERROR', field: 'postingPeriod', message: 'Posting period must be YYYY-MM.' });
+      return out;
+    },
+    buildPayload: (p) => ({
+      apiService: 'JournalEntryCreateRequest',
+      JournalEntry: {
+        CompanyCode: p['companyCode'], PostingDate: `${p['postingPeriod']}-30`,
+        HeaderText: `STO accrual ${p['sourceObjectId']}`,
+        AccrualItem: { CostObject: p['costObject'], AmountInCoCodeCrcy: p['amountUSD'], Reason: p['reason'] }
+      }
+    }),
+    apply: (p, txn, ctx) => {
+      setState(ctx.tenantId, p['sourceObjectId'] as string, 'posted', ctx, { accountingDocument: txn.targetDocumentNumber });
+      const db = getDb();
+      putObject(db, {
+        id: `JE-${txn.targetDocumentNumber ?? txn.transactionId}`, tenantId: ctx.tenantId, objectType: 'JournalEntryProxy',
+        sourceSystem: 'SAP_S4', sourceMode: 'SIMULATOR', sourceObject: 'JournalEntry', sourceReference: txn.targetDocumentNumber ?? 'PENDING',
+        lifecycleState: 'created', approvalState: 'APPROVED', riskClass: 'FINANCE_CRITICAL', owner: ctx.user.id,
+        sourceFreshness: nowIso(), createdBy: ctx.user.id, createdAt: nowIso(), updatedBy: ctx.user.id, updatedAt: nowIso(),
+        correlationId: txn.correlationId, data: { ...p, desc: `Accrual ${p['sourceObjectId']} posted` }
+      });
+    }
+  },
+  {
+    id: 'analytics.create_action',
+    label: 'Create Action From Insight',
+    description: 'Convert a KPI exception into a routed work item with source-object traceability.',
+    screen: '/analytics', businessCapability: 'Analytics & Insights', actionClass: 'ADVISORY', riskClass: 'MEDIUM',
+    allowedRoles: ['sto_manager', 'outage_manager', 'scheduler_project_controls', 'finance_cost_controller', 'hse_safety_reviewer'], sod: false,
+    targetObjectType: 'ExceptionToAction', targetSystem: 'STO_PLATFORM',
+    fields: [
+      { name: 'title', label: 'Action title', type: 'text', required: true },
+      { name: 'sourceKpi', label: 'Source KPI', type: 'text', required: true },
+      { name: 'targetRoute', label: 'Owning screen route', type: 'text', required: true },
+      { name: 'ownerRole', label: 'Owner role', type: 'text', required: true }
+    ],
+    validate: (p) => req(p, ['title', 'sourceKpi', 'targetRoute', 'ownerRole']),
+    apply: (p, txn, ctx) => {
+      const db = getDb();
+      putObject(db, {
+        id: newId('ETA'), tenantId: ctx.tenantId, objectType: 'ExceptionToAction', sourceSystem: 'STO_PLATFORM',
+        sourceMode: 'SIMULATOR', sourceObject: 'ExceptionToAction', sourceReference: txn.transactionId,
+        lifecycleState: 'open', approvalState: 'NOT_REQUIRED', riskClass: 'MEDIUM', owner: ctx.user.id,
+        sourceFreshness: nowIso(), createdBy: ctx.user.id, createdAt: nowIso(), updatedBy: ctx.user.id, updatedAt: nowIso(),
+        correlationId: txn.correlationId, data: { ...p, eventId: 'EV-1001' }
+      });
+    }
+  },
 
   // ======================= EXECUTION / LABOR =======================
   {
@@ -575,6 +889,47 @@ export const ACTIONS: ActionDefinition[] = [
       const ex = listObjects(db, ctx.tenantId, 'OperationExecution', (o) => o.data['operationId'] === p['operationId'])[0];
       if (ex) { ex.data['progressPct'] = p['progressPct']; touch(ex, ctx.user.id); }
     }
+  },
+  {
+    id: 'plan.publish',
+    label: 'Publish Daily Execution Plan',
+    description: 'Publish the daily plan after verifying critical path jobs, crew coverage, permits, tools, material kits and SIMOPS readiness.',
+    screen: '/execution-map', businessCapability: 'Execution', actionClass: 'CONTROLLED', riskClass: 'HIGH',
+    allowedRoles: ['maintenance_supervisor', 'scheduler_project_controls', 'sto_manager'], approverRoles: ['outage_manager', 'sto_manager'],
+    sod: true, targetObjectType: 'DailyExecutionPlan', targetSystem: 'STO_PLATFORM',
+    fields: [
+      { name: 'sourceObjectId', label: 'Daily plan', type: 'text', required: true },
+      { name: 'publishNote', label: 'Publish note', type: 'textarea', required: true },
+      { name: 'reason', label: 'Decision reason', type: 'textarea', required: true }
+    ],
+    validate: (p, ctx) => {
+      const out = req(p, ['sourceObjectId', 'publishNote', 'reason']);
+      const db = getDb();
+      const plan = getObject(db, ctx.tenantId, p['sourceObjectId'] as string);
+      const blockers = ((plan?.data['blockers'] ?? []) as unknown[]).length;
+      if (blockers > 0) out.push({ severity: 'ERROR', message: `Daily plan has ${blockers} unresolved blocker(s).` });
+      return out;
+    },
+    apply: (p, _t, ctx) => setState(ctx.tenantId, p['sourceObjectId'] as string, 'published', ctx, { publishNote: p['publishNote'] })
+  },
+  {
+    id: 'progress.supervisor_accept',
+    label: 'Accept Progress Update',
+    description: 'Supervisor acceptance of a mobile/field progress update before it can drive SAP confirmation or schedule earned value.',
+    screen: '/execution-map', businessCapability: 'Execution', actionClass: 'CONTROLLED', riskClass: 'MEDIUM',
+    allowedRoles: ['maintenance_supervisor', 'crew_supervisor'], approverRoles: ['maintenance_supervisor', 'sto_manager'],
+    sod: true, targetObjectType: 'ProgressUpdate', targetSystem: 'STO_PLATFORM',
+    fields: [
+      { name: 'sourceObjectId', label: 'Progress update', type: 'text', required: true },
+      { name: 'acceptedProgressPct', label: 'Accepted progress %', type: 'number', required: true },
+      { name: 'acceptanceNote', label: 'Acceptance note', type: 'textarea', required: true }
+    ],
+    validate: (p) => {
+      const out = req(p, ['sourceObjectId', 'acceptedProgressPct', 'acceptanceNote']);
+      if (Number(p['acceptedProgressPct']) < 0 || Number(p['acceptedProgressPct']) > 100) out.push({ severity: 'ERROR', field: 'acceptedProgressPct', message: 'Accepted progress must be 0..100.' });
+      return out;
+    },
+    apply: (p, _t, ctx) => setState(ctx.tenantId, p['sourceObjectId'] as string, 'accepted', ctx, { acceptedProgressPct: p['acceptedProgressPct'], acceptanceNote: p['acceptanceNote'] })
   },
   {
     id: 'operation.confirm',
